@@ -46,12 +46,27 @@
                                         Aandelen: {{ c.name }} (Koers: ƒ {{ c.stock_price.toLocaleString() }})
                                     </option>
                                 </select>
+
+                                <div v-if="form.seller_id && form.target_company_id" class="form-text text-primary mt-1">
+                                    <i class="bi bi-info-circle"></i> {{ getCompanyName(form.seller_id) }} bezit momenteel <strong>{{ maxAvailableShares }}</strong> van deze aandelen.
+                                </div>
                             </div>
 
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label fw-bold">Aantal</label>
-                                    <input type="number" v-model="form.amount" class="form-control" min="1" required :disabled="loading">
+                                    <input
+                                        type="number"
+                                        v-model="form.amount"
+                                        class="form-control"
+                                        :class="{'is-invalid': form.amount > maxAvailableShares}"
+                                        min="1"
+                                        required
+                                        :disabled="loading"
+                                    >
+                                    <div class="invalid-feedback" v-if="form.amount > maxAvailableShares">
+                                        Ze bezitten er maar {{ maxAvailableShares }}!
+                                    </div>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-bold">Totaal Bod (ƒ)</label>
@@ -163,7 +178,7 @@ const feedbackType = ref('');
 
 // Form State
 const form = reactive({
-    buyer_id: '', // Only used by Admin
+    buyer_id: '',
     seller_id: '',
     target_company_id: '',
     amount: 1,
@@ -174,23 +189,36 @@ const form = reactive({
 const getCompany = (id) => companies.find(c => c.id === id);
 const getCompanyName = (id) => getCompany(id)?.name || 'Onbekend';
 
-// Dynamically filter sellers so you can't buy from yourself
 const availableSellers = computed(() => {
     const currentBuyerId = isAdmin.value ? form.buyer_id : myCompanyId.value;
     return companies.filter(c => Number(c.id) !== Number(currentBuyerId));
 });
 
+// Calculate how many shares the seller actually has
+const maxAvailableShares = computed(() => {
+    if (!form.seller_id || !form.target_company_id) return 0;
+
+    const seller = getCompany(form.seller_id);
+    if (!seller || !seller.portfolio) return 0;
+
+    // Assumes your backend includes a 'portfolio' array in the company object
+    // structured like: [{ company_id: 1, amount: 25 }, ...]
+    const stockRecord = seller.portfolio.find(p => Number(p.company_id) === Number(form.target_company_id));
+
+    return stockRecord ? stockRecord.amount : 0;
+});
 // Form validation
 const isInvalid = computed(() => {
     if (isAdmin.value && !form.buyer_id) return true;
-    return !form.seller_id || !form.target_company_id || form.amount < 1 || form.total_price < 1;
+    if (!form.seller_id || !form.target_company_id || form.amount < 1 || form.total_price < 1) return true;
+    if (form.amount > maxAvailableShares.value) return true; // Block submission if too high
+    return false;
 });
 
 const loadOffers = async () => {
     try {
         const data = await apiCall('/api/offers/pending');
         if (data) {
-            // Sorteer nieuwste biedingen bovenaan
             pendingOffers.value = data.sort((a, b) => b.id - a.id);
         }
     } catch (e) {
@@ -209,7 +237,6 @@ const submitOffer = async () => {
             total_price: form.total_price
         };
 
-        // If Admin is making the offer, we MUST tell the backend who the buyer is
         if (isAdmin.value) {
             payload.buyer_id = form.buyer_id;
         }
@@ -222,7 +249,7 @@ const submitOffer = async () => {
         // Reset form
         form.amount = 1;
         form.total_price = 1000;
-        if (!isAdmin.value) form.seller_id = ''; // Keep buyer_id selected for admin convenience
+        if (!isAdmin.value) form.seller_id = '';
 
         await loadOffers();
     } catch (e) {
@@ -243,10 +270,10 @@ const respondToOffer = async (offerId, action) => {
         await apiCall(`/api/offers/${offerId}/${action}`, 'POST');
 
         if (isAccepting && reloadCompanies) {
-            await reloadCompanies(); // Ververst direct de cash en aandelen in heel de app!
+            await reloadCompanies();
         }
 
-        await loadOffers(); // Haal het bod direct weg uit de lijst
+        await loadOffers();
     } catch (e) {
         alert(`Fout: ${e.message}`);
     } finally {
