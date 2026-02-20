@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # --- BACKEND (API) ---
+  nginx:
+    container_name: aandelenspel-nginx
+    image: nginx:latest
+    ports:
+      - "80:80"
+    environment:
+      - TZ=${APP_TIMEZONE}
+    volumes:
+      - ./api/nginx.conf:/etc/nginx/nginx.conf
+      - ./api/app:/app
+    networks:
+      - aandelenspel-network
+
+  php:
+    container_name: aandelenspel-api
+    build:
+      context: ./api
+      dockerfile: PHP.Dockerfile
+    working_dir: /app
+    environment:
+      - TZ=${APP_TIMEZONE}
+    env_file:
+      - .env
+    volumes:
+      - ./api/app:/app
+    networks:
+      - aandelenspel-network
+
+  # --- DATABASE ---
+  mysql:
+    container_name: aandelenspel-db
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: ${APP_TIMEZONE}
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./sql/setup.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - aandelenspel-network
+
+  phpmyadmin:
+    container_name: aandelenspel-pma
+    image: phpmyadmin:latest
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=${DB_USER}
+      - PMA_PASSWORD=${DB_PASS}
+      - TZ=${APP_TIMEZONE}
+    restart: unless-stopped
+    networks:
+      - aandelenspel-network
+
+  # --- FRONTEND (UI) ---
+  vue-frontend:
+    container_name: aandelenspel-ui
+    image: node:22-alpine
+    working_dir: /ui
+    env_file:
+      - .env
+    volumes:
+      - ./ui:/ui
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - aandelenspel-network
+
+networks:
+  aandelenspel-network:
+    driver: bridge
+
+volumes:
+  mysqldata: {}

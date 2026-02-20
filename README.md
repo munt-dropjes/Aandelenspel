@@ -1,10 +1,12 @@
-# 📈 Companies, Stocks & Trading Game Economy API
+# 📈 Aandelen Spel - Full Stack Game Economy
 
-This is a **Game Economy Backend** built with **Vanilla PHP** (no framework) and **MySQL**, designed to simulate a real-time stock market for a scouting game or simulation.
+A real-time stock market and economy simulation built for a scouting/group game. This application features a **Vue 3** frontend dashboard powered by a **Vanilla PHP** and **MySQL** backend.
 
-## 🌟 Overview
+Teams (Companies) compete for the highest Net Worth by completing high-stakes tasks, trading shares, and negotiating offers in a dynamic, living economy.
 
-The application simulates a dynamic economy with high-stakes mechanics:
+---
+
+## 🌟 Game Mechanics & Features
 
 * **Companies:** (Teams/Groups) have **Cash** and own **Stocks**.
     * **Privacy:** A company's Cash balance is **private**. Only Admins and the company owner can see it. Other players only see Net Worth.
@@ -20,81 +22,63 @@ The application simulates a dynamic economy with high-stakes mechanics:
     * **Failure:** The company pays a **Penalty** (deducted from cash) and is **blocked** from retrying.
     * **Fairness:** Failed attempts do *not* consume a Rank slot. If Company A fails, Company B can still claim the 1st Place reward.
 * **History:** The system records minute-by-minute snapshots of company values for historical graphing.
+* **Authentication:** Users (Admins/Game Masters) login via JWT.
+* **The Heartbeat:** Once logged in, the frontend triggers a "Snapshot" event (`/api/history/save`) every **60 seconds**.
+* **Live Updates:**
+  * **Graph:** Fetches historical data points (synchronized to UTC) to visualize company performance over time.
+  * **Stocks:** Displays a live matrix of share ownership and bank availability.
+  * **Tasks:** Allows dynamic input of task results, automatically calculating ranks and financial rewards on the server.
 
 ---
 
-## 🚀 Installation & Setup
+## 🛠 Tech Stack
 
-### Prerequisites
-* [Docker](https://www.docker.com/) and Docker Compose installed.
+**Frontend (UI)**
+* Vue 3 & Vite
+* Chart.js (for performance-optimized live graphing)
+* Bootstrap 5
 
-### 1. Clone & Configure
-```bash
-git clone <your-repo-url>
-cd <your-repo-folder>
+**Backend (API)**
+* PHP 8.2 (Vanilla, No Framework)
+* MySQL 8.0 / MariaDB
+* `bramus/router` (Routing)
+* `firebase/php-jwt` (Authentication)
 
-# Copy the example environment file
-cp .env.example .env
-
-```
-
-### 2. Configure Environment (.env)
-
-Open `.env` and set your database credentials. If using the provided `docker-compose.yml`, these defaults work out of the box:
-
-```ini
-# Database Configuration
-DB_TYPE=mysql
-DB_SERVER=mysql
-DB_USER=developer
-DB_PASS=secret123
-DB_NAME=developmentdb
-DB_PORT=8080
-
-# JWT Configuration
-JWT_SECRET=default_secret_for_dev
-JWT_ALGO=HS256
-JWT_ISSUER=http://localhost/api
-JWT_EXPIRE_TIME=3600
-```
-
-### 3. Start the Application
-
-Run the application using Docker Compose. This spins up the **PHP-Apache** container and the **MySQL** database.
-
-```bash
-docker-compose up -d --build
-```
-
-### 4. Database Initialization
-
-The database will automatically initialize using the script in `sql/setup.sql` on the first run.
-
-* **Default Admin User:** `StockMaster`
-* **Default Companies:** `Haviken`, `Spechten`, `Sperwers`, `Zwaluwen` & `Valken`
-* **Default Password for all users:** `password123`
+**Infrastructure**
+* Docker & Docker Compose (Nginx, PHP-FPM, Node, MariaDB)
 
 ---
 
-## 📡 Usage
+## 🚀 Quick Start & Installation
 
-The API is accessible at `http://localhost`.
+Because this project is a monorepo, both the frontend and backend spin up simultaneously using a single Docker command.
 
-### Authentication
+### 1. Setup
+Copy the example environment file (if you haven't already):
+`cp .env.example .env`
 
-Most endpoints are **protected** and require a Bearer Token.
+### 2. Start the Application
+Run the following command to build the containers, install dependencies, and start the application:
+`docker-compose up -d --build`
 
-1. **Login** via `POST /login` with `{"username": "StockMaster", "password": "password123"}`.
-2. Copy the `token` from the response.
-3. Add it to your request headers:
-   `Authorization: Bearer <your_token_here>`
+### 3. Access the Game
+* **Frontend Dashboard:** `http://localhost:5173`
+* **Backend API:** `http://localhost/api`
+* **Database Management (PhpMyAdmin):** `http://localhost:8081`
 
-### Heartbeat / Snapshot Trigger
+**Default Logins:**
+On the first run, the database automatically initializes with default data:
+* **Admin User:** `StockMaster` (Password: `password123`)
+* **Default Companies:** Haviken, Spechten, Sperwers, Zwaluwen, Valken
 
-To generate historical data for graphs, the backend expects a "pulse". You should call this endpoint every minute (via cron job or frontend loop).
+---
 
-* **Endpoint:** `POST /api/history/save`
-* **Logic:** The backend checks if a snapshot exists for the current minute. If not, it saves one. If yes, it skips.
+## 📂 Monorepo Structure
+
+* `/api` - The Vanilla PHP backend application.
+* `/ui` - The Vue 3 frontend application.
+* `/sql` - Database initialization scripts (`setup.sql`).
+* `docker-compose.yml` - Master infrastructure file.
 
 ---
 
@@ -150,7 +134,7 @@ Payload (Failure/Penalty):
 | `GET`  | `/api/stocks/company/{id}` | View a specific company's portfolio.                       |
 | `POST` | `/api/stocks/trade`        | Buy/Sell stocks. Checks for sufficient Cash & Stock funds. |
 
-**Payload:** 
+**Payload:**
 ```JSON
 {
   "buyer_id": 1,
@@ -198,13 +182,3 @@ Payload (Failure/Penalty):
 }
 ```
 *(In this example, the authenticated user is offering Company #2 $f$ 15,000 to buy 5 shares of Company #2's own stock).*
-
----
-
-## 🛠 Tech Stack
-
-* **Language:** PHP 8.2 (Vanilla)
-* **Database:** MySQL 8.0
-* **Router:** `bramus/router`
-* **Auth:** JWT (`firebase/php-jwt`)
-* **Docs:** Swagger / OpenAPI 3.0

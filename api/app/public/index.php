@@ -5,7 +5,7 @@ use Bramus\Router\Router;
 use Services\AuthService;
 use Dotenv\Dotenv;
 
-$dotenv = Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
 $dotenv->safeLoad();
 
 date_default_timezone_set('Europe/Amsterdam');
