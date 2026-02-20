@@ -13,7 +13,6 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item"><router-link to="/" class="nav-link" active-class="active">Regels</router-link></li>
-
                         <li class="nav-item"><router-link to="/opdrachten" class="nav-link" active-class="active">Opdrachten</router-link></li>
                         <li class="nav-item"><router-link to="/aandelen" class="nav-link" active-class="active">Aandelenverdeling</router-link></li>
                         <li class="nav-item"><router-link to="/grafiek" class="nav-link" active-class="active">Grafiek</router-link></li>
@@ -23,9 +22,15 @@
                                 {{ isAdmin ? 'Admin Overzicht' : 'Mijn Rekening' }}
                             </router-link>
                         </li>
+
+                        <li class="nav-item">
+                            <router-link to="/handelsverzoeken" class="nav-link" active-class="active">
+                                <i class="bi bi-briefcase-fill me-1"></i> Handelsverzoeken
+                            </router-link>
+                        </li>
                     </ul>
 
-                    <ul class="navbar-nav ms-3" v-if="username">
+                    <ul class="navbar-nav ms-auto" v-if="username">
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person-circle fs-5 me-2"></i>

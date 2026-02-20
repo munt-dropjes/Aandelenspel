@@ -5,6 +5,7 @@ import Stocks from '../components/StockDivider.vue';
 import Graph from '../components/Graph.vue';
 import Login from '../components/Login.vue';
 import Transactions from '../components/Transactions.vue';
+import TradeOffers from '../components/TradeOffers.vue';
 
 const routes = [
     { path: '/', component: Rules },
@@ -12,7 +13,8 @@ const routes = [
     { path: '/aandelen', component: Stocks },
     { path: '/grafiek', component: Graph },
     { path: '/login', component: Login },
-    { path: '/transacties', component: Transactions }
+    { path: '/transacties', component: Transactions },
+    { path: '/handelsverzoeken', component: TradeOffers }
 ];
 
 const router = createRouter({
