@@ -54,6 +54,7 @@ class StockService
         if (!$buyer) throw new Exception("Koper niet gevonden.", 404);
         $request->buyer_name = $buyer->name;
 
+        $seller = null;
         if ($request->seller_id !== null) {
             $seller = $this->companyService->getCompanyModelById($request->seller_id);
             if (!$seller) throw new Exception("Verkoper niet gevonden.", 404);

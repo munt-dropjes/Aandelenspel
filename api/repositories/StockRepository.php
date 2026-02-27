@@ -42,7 +42,7 @@ class StockRepository extends Repository {
     /**
      * @throws Exception
      */
-    public function executeTrade(StockTradeRequest $req, int $totalCost, Company $seller, Company $buyer): void {
+    public function executeTrade(StockTradeRequest $req, int $totalCost, ?Company $seller, Company $buyer): void {
         try {
             $this->connection->beginTransaction();
 
@@ -82,7 +82,7 @@ class StockRepository extends Repository {
             ]);
 
             // 4. Log Transaction
-            $sellerName = $seller->name ?: "De Bank";
+            $sellerName = $seller ? $seller->name : "De Bank";
             $this->connection->prepare("INSERT INTO transactions (company_id, amount, description) VALUES (?, ?, ?)")
                 ->execute([$req->buyer_id, -$totalCost, "{$req->amount} aandelen {$req->stock_company_name} gekocht van $sellerName"]);
 
