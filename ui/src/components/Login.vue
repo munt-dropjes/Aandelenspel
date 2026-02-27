@@ -26,7 +26,7 @@
 import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiCall } from '../services/api';
-import { useAuth } from '../composables/useAuth'; // Import Auth
+import { useAuth } from '../composables/useAuth';
 
 const username = ref('');
 const password = ref('');
@@ -35,7 +35,8 @@ const loading = ref(false);
 const router = useRouter();
 
 const reloadCompanies = inject('reloadCompanies');
-const { login } = useAuth(); // Destructure login function
+const checkPendingOffers = inject('checkPendingOffers');
+const { login } = useAuth();
 
 const handleLogin = async () => {
     loading.value = true;
@@ -56,7 +57,12 @@ const handleLogin = async () => {
                 await reloadCompanies();
             }
 
-            // 3. Redirect based on Role
+            // 3. Fetch Pending Offers immediately to pop the notification badge instantly
+            if (checkPendingOffers) {
+                await checkPendingOffers();
+            }
+
+            // 4. Redirect based on Role
             if (response.user.role === 'admin') {
                 router.push('/'); // Admin goes to Rules/Home
             } else {

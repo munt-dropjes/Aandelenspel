@@ -100,10 +100,12 @@ const {
 // Initialize Auth
 const { initAuth, isAdmin, logout, username, myCompanyId } = useAuth();
 
+// --- NEW: Notification Polling System ---
 const incomingOffersCount = ref(0);
 let offerPollingTimer = null;
 
 const checkPendingOffers = async () => {
+    // Only check if logged in
     if (!localStorage.getItem('authToken')) return;
 
     try {
@@ -151,7 +153,6 @@ provide('checkPendingOffers', checkPendingOffers);
 /* Highlight active links */
 .navbar-nav .nav-link.active { color: #fff !important; font-weight: bold; border-bottom: 2px solid #0d6efd; }
 
-/* Optional: Make the dropdown nicer */
 .dropdown-menu-dark { background-color: #343a40; border-color: #495057; }
 .dropdown-item:hover { background-color: #495057; }
 

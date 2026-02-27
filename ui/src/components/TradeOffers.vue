@@ -4,7 +4,7 @@
             <h2 class="text-primary">
                 <i class="bi bi-briefcase-fill me-2"></i> Handelsverzoeken
             </h2>
-            <button @click="loadOffers" class="btn btn-outline-primary btn-sm">
+            <button @click="refreshData" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-arrow-clockwise"></i> Verversen
             </button>
         </div>
@@ -59,7 +59,7 @@
                                         type="number"
                                         v-model="form.amount"
                                         class="form-control"
-                                        :class="{'is-invalid': form.amount > maxAvailableShares}"
+                                        :class="{'is-invalid': form.amount > maxAvailableShares && form.amount > 0}"
                                         min="1"
                                         required
                                         :disabled="loading"
@@ -120,12 +120,12 @@
                                         <span class="badge bg-secondary">Verkoper: {{ getCompanyName(offer.seller_id) }}</span>
                                     </div>
                                     <div v-else>
-                    <span v-if="Number(offer.buyer_id) === Number(myCompanyId)" class="badge border border-warning text-warning">
-                      <i class="bi bi-send"></i> Uitgaand bod aan {{ getCompanyName(offer.seller_id) }}
-                    </span>
+                                        <span v-if="Number(offer.buyer_id) === Number(myCompanyId)" class="badge border border-warning text-warning">
+                                          <i class="bi bi-send"></i> Uitgaand bod aan {{ getCompanyName(offer.seller_id) }}
+                                        </span>
                                         <span v-if="Number(offer.seller_id) === Number(myCompanyId)" class="badge bg-primary">
-                      <i class="bi bi-inbox"></i> Inkomend van {{ getCompanyName(offer.buyer_id) }}
-                    </span>
+                                          <i class="bi bi-inbox"></i> Inkomend van {{ getCompanyName(offer.buyer_id) }}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -141,9 +141,9 @@
                                     </template>
 
                                     <template v-else-if="Number(offer.buyer_id) === Number(myCompanyId)">
-                    <span class="text-muted small fst-italic">
-                      <i class="bi bi-hourglass-split"></i> Wachten op reactie...
-                    </span>
+                                        <span class="text-muted small fst-italic">
+                                          <i class="bi bi-hourglass-split"></i> Wachten op reactie...
+                                        </span>
                                     </template>
 
                                 </div>
@@ -168,11 +168,12 @@ import { apiCall } from '../services/api';
 import { useAuth } from '../composables/useAuth';
 
 const companies = inject('companies');
-const checkPendingOffers = inject('checkPendingOffers');
 const reloadCompanies = inject('reloadCompanies');
+const checkPendingOffers = inject('checkPendingOffers');
 const { myCompanyId, isAdmin } = useAuth();
 
 const pendingOffers = ref([]);
+const allShares = ref([]);
 const loading = ref(false);
 const feedback = ref('');
 const feedbackType = ref('');
@@ -195,19 +196,18 @@ const availableSellers = computed(() => {
     return companies.filter(c => Number(c.id) !== Number(currentBuyerId));
 });
 
-// Calculate how many shares the seller actually has
+// Calculate how many shares the seller actually has based on the real /api/stocks data
 const maxAvailableShares = computed(() => {
-    if (!form.seller_id || !form.target_company_id) return 0;
+    if (!form.seller_id || !form.target_company_id || allShares.value.length === 0) return 0;
 
-    const seller = getCompany(form.seller_id);
-    if (!seller || !seller.portfolio) return 0;
-
-    // Assumes your backend includes a 'portfolio' array in the company object
-    // structured like: [{ company_id: 1, amount: 25 }, ...]
-    const stockRecord = seller.portfolio.find(p => Number(p.company_id) === Number(form.target_company_id));
+    const stockRecord = allShares.value.find(s =>
+        Number(s.owner_id) === Number(form.seller_id) &&
+        Number(s.company_id) === Number(form.target_company_id)
+    );
 
     return stockRecord ? stockRecord.amount : 0;
 });
+
 // Form validation
 const isInvalid = computed(() => {
     if (isAdmin.value && !form.buyer_id) return true;
@@ -225,6 +225,26 @@ const loadOffers = async () => {
     } catch (e) {
         console.error("Failed to load offers", e);
     }
+};
+
+// Fetch all active stocks so we can validate maxAvailableShares
+const loadShares = async () => {
+    try {
+        const data = await apiCall('/api/stocks');
+        if (data) {
+            allShares.value = data;
+        }
+    } catch (e) {
+        console.error("Failed to load stocks", e);
+    }
+};
+
+// Helper to refresh everything
+const refreshData = async () => {
+    loading.value = true;
+    await loadOffers();
+    await loadShares();
+    loading.value = false;
 };
 
 const submitOffer = async () => {
@@ -252,7 +272,7 @@ const submitOffer = async () => {
         form.total_price = 1000;
         if (!isAdmin.value) form.seller_id = '';
 
-        await loadOffers();
+        await refreshData();
     } catch (e) {
         feedbackType.value = 'error';
         feedback.value = e.message || 'Mislukt om bod te sturen.';
@@ -274,8 +294,9 @@ const respondToOffer = async (offerId, action) => {
             await reloadCompanies();
         }
 
-        await loadOffers();
+        await refreshData();
 
+        // Instantly update the red badge in the navbar
         if (checkPendingOffers) {
             await checkPendingOffers();
         }
@@ -288,6 +309,6 @@ const respondToOffer = async (offerId, action) => {
 };
 
 onMounted(() => {
-    loadOffers();
+    refreshData();
 });
 </script>
