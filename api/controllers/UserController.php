@@ -5,15 +5,18 @@ use Models\DTO\UserCreateRequest;
 use Models\DTO\UserManyRequest;
 use Models\DTO\UserUpdateRequest;
 use models\User;
+use Services\AuthService;
 use Services\UserService;
 use Exception;
 
 class UserController extends Controller
 {
     private UserService $userService;
+    private AuthService $authService;
 
     public function __construct() {
         $this->userService = new UserService();
+        $this->authService = new AuthService();
     }
 
     public function getAll() {
@@ -50,6 +53,12 @@ class UserController extends Controller
     }
 
     public function newUser() {
+        $currentUser = $this->authService->getCurrentUserFromTokenPayload();
+        if ($currentUser->role !== 'admin') {
+            $this->respondWithError(403, "Unauthorized: Only admins can create users.");
+            return;
+        }
+
         $newUserRequest = $this->requestObjectFromPostedJson(UserCreateRequest::class);
 
         if (!$newUserRequest->email || !$newUserRequest->password || !$newUserRequest->username){
@@ -66,7 +75,18 @@ class UserController extends Controller
 
     public function updateUser(int $id) {
         try {
+            $currentUser = $this->authService->getCurrentUserFromTokenPayload();
+            if ($currentUser->role !== 'admin' && $currentUser->id !== $id) {
+                $this->respondWithError(403, "Unauthorized: You can only update your own profile.");
+                return;
+            }
+
             $inputUser = $this->requestObjectFromPostedJson(UserUpdateRequest::class);
+
+            if ($currentUser->role !== 'admin' && isset($inputUser->role) && $inputUser->role !== $currentUser->role) {
+                $this->respondWithError(403, "Unauthorized: You cannot elevate your own privileges.");
+                return;
+            }
 
             $this->respond($this->userService->updateUser($id, $inputUser));
         } catch (Exception $e) {
@@ -78,12 +98,18 @@ class UserController extends Controller
      * @throws Exception
      */
     public function deleteUser($id) {
-        $user = $this->userService->getById($id);
-        if (!$user) {
-            $this->respondWithError(404, "User not found");
-        }
-
         try {
+            $currentUser = $this->authService->getCurrentUserFromTokenPayload();
+            if ($currentUser->role !== 'admin') {
+                $this->respondWithError(403, "Unauthorized: Only admins can delete users.");
+                return;
+            }
+
+            $user = $this->userService->getById($id);
+            if (!$user) {
+                $this->respondWithError(404, "User not found");
+            }
+
             $this->userService->deleteUser($id);
             $this->respond(['message' => 'User deleted successfully']);
         } catch (Exception $e) {
