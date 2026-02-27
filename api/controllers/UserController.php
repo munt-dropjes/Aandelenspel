@@ -35,7 +35,7 @@ class UserController extends Controller
         if(!empty($users)) {
             $this->respond($users);
         } else {
-            $this->respondWithError(204, "No users found");
+            $this->respondWithError(204, "Geen gebruikers gevonden.");
         }
     }
 
@@ -45,7 +45,7 @@ class UserController extends Controller
             if ($user) {
                 $this->respond($user);
             } else {
-                $this->respondWithError(404, "User not found");
+                $this->respondWithError(404, "Gebruiker niet gevonden.");
             }
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
@@ -55,14 +55,13 @@ class UserController extends Controller
     public function newUser() {
         $currentUser = $this->authService->getCurrentUserFromTokenPayload();
         if ($currentUser->role !== 'admin') {
-            $this->respondWithError(403, "Unauthorized: Only admins can create users.");
-            return;
+            $this->respondWithError(403, "Onbevoegd: Alleen stafleden kunnen gebruikers aanmaken.");
         }
 
         $newUserRequest = $this->requestObjectFromPostedJson(UserCreateRequest::class);
 
         if (!$newUserRequest->email || !$newUserRequest->password || !$newUserRequest->username){
-            $this->respondWithError(400, "Missing fields: email, username, password are required");
+            $this->respondWithError(400, "Ontbrekende verplichte velden");
         }
 
         try {
@@ -77,15 +76,13 @@ class UserController extends Controller
         try {
             $currentUser = $this->authService->getCurrentUserFromTokenPayload();
             if ($currentUser->role !== 'admin' && $currentUser->id !== $id) {
-                $this->respondWithError(403, "Unauthorized: You can only update your own profile.");
-                return;
+                $this->respondWithError(403, "Onbevoegd: Je kunt alleen je eigen profiel bijwerken.");
             }
 
             $inputUser = $this->requestObjectFromPostedJson(UserUpdateRequest::class);
 
             if ($currentUser->role !== 'admin' && isset($inputUser->role) && $inputUser->role !== $currentUser->role) {
-                $this->respondWithError(403, "Unauthorized: You cannot elevate your own privileges.");
-                return;
+                $this->respondWithError(403, "Onbevoegd: Je kunt je eigen rechten niet verhogen.");
             }
 
             $this->respond($this->userService->updateUser($id, $inputUser));
@@ -101,17 +98,16 @@ class UserController extends Controller
         try {
             $currentUser = $this->authService->getCurrentUserFromTokenPayload();
             if ($currentUser->role !== 'admin') {
-                $this->respondWithError(403, "Unauthorized: Only admins can delete users.");
-                return;
+                $this->respondWithError(403, "Onbevoegd: Alleen stafleden kunnen gebruikers verwijderen.");
             }
 
             $user = $this->userService->getById($id);
             if (!$user) {
-                $this->respondWithError(404, "User not found");
+                $this->respondWithError(404, "Gebruiker niet gevonden.");
             }
 
             $this->userService->deleteUser($id);
-            $this->respond(['message' => 'User deleted successfully']);
+            $this->respond(['message' => 'Gebruiker succesvol verwijderd.']);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
         }

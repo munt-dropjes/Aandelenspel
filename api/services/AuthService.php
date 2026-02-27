@@ -25,7 +25,7 @@ class AuthService {
         $authHeader = $headers['Authorization'] ?? '';
 
         if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-            $this->abort(400, 'Token not found');
+            $this->abort(401, 'Token niet gevonden. Je bent niet ingelogd.');
         }
 
         $jwt = $matches[1];
@@ -33,7 +33,7 @@ class AuthService {
         try {
             return JWT::decode($jwt, new Key(JwtConfig::getSecret(), JwtConfig::getAlgo()));
         } catch (Exception $e) {
-            $this->abort(401, 'Invalid Token: ' . $e->getMessage());
+            $this->abort(401, 'Ongeldig Token: Sessie is verlopen of corrupt.');
         }
     }
 
@@ -42,23 +42,24 @@ class AuthService {
      */
     public function login (UserLoginRequest $userRequest): User {
         if (!isset($userRequest->username) || !isset($userRequest->password)) {
-            throw new Exception("Missing required fields", 400);
+            throw new Exception("Ontbrekende verplichte velden.", 400);
         }
 
         try {
             $user = $this->userRepository->findByUsername($userRequest->username);
 
             if (!$user) {
-                throw new Exception("Invalid username", 401);
+                throw new Exception("Ongeldige gebruikersnaam.", 401);
             }
 
             if (!password_verify($userRequest->password, $user->password)) {
-                throw new Exception("Invalid password", 401);
+                throw new Exception("Ongeldig wachtwoord.", 401);
             }
 
             return $user;
         } catch (Exception $e) {
-            throw new Exception('Internal server error: ' . $e->getMessage());
+            if ($e->getCode() === 401 || $e->getCode() === 400) throw $e;
+            throw new Exception('Interne serverfout: ' . $e->getMessage(), 500);
         }
     }
 
@@ -71,7 +72,6 @@ class AuthService {
         $user->id = $jwtData->id;
         $user->username = $jwtData->username;
         $user->role = $jwtData->role;
-        // Handle nullable company_id safely
         $user->company_id = isset($jwtData->company_id) ? (int)$jwtData->company_id : null;
         return $user;
     }
@@ -79,7 +79,7 @@ class AuthService {
     #[NoReturn]
     private function abort(int $code, string $message): void {
         http_response_code($code);
-        echo json_encode(['error' => $message]);
+        echo json_encode(['errorMessage' => $message]);
         exit;
     }
 }

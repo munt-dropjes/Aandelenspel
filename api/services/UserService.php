@@ -20,12 +20,10 @@ class UserService {
      */
     public function getAllUsers(UserManyRequest $request): array {
         $users = $this->userRepo->findAll($request);
-
         $response = [];
         foreach ($users as $user) {
             $response[] = UserResponse::CreateFromUser($user);
         }
-
         return $response;
     }
 
@@ -42,19 +40,19 @@ class UserService {
     public function registerUser(UserCreateRequest $request): UserResponse {
         try {
             if ($this->userRepo->findByUsername($request->username)) {
-                throw new Exception("Username already exists", 400);
+                throw new Exception("Gebruikersnaam bestaat al.", 400);
             }
 
             $request->email = strtolower($request->email);
             if (!filter_var($request->email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception("Invalid email format", 400);
+                throw new Exception("Ongeldig e-mailadres formaat.", 400);
             }
 
             $request->password = password_hash($request->password, PASSWORD_DEFAULT);
 
             $created = $this->userRepo->create($request);
             if (!$created) {
-                throw new Exception("User creation failed", 500);
+                throw new Exception("Aanmaken van gebruiker mislukt.", 500);
             }
 
             return UserResponse::CreateFromUser($this->userRepo->findByUsername($request->username));
@@ -70,10 +68,9 @@ class UserService {
         try {
             $user = $this->userRepo->findById($id);
             if (!$user) {
-                throw new Exception("User not found", 404);
+                throw new Exception("Gebruiker niet gevonden.", 404);
             }
 
-            // Business Logic: If updating password, hash it first
             if (!empty($request->password)) {
                 $request->password = password_hash($request->password, PASSWORD_DEFAULT);
             }

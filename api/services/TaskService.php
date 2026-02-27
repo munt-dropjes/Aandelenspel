@@ -38,24 +38,24 @@ class TaskService
     public function completeTask(TaskCompleteRequest $request): TaskResponse {
         $task = $this->taskRepo->getById($request->task_id);
         if (!$task) {
-            throw new Exception("Task not found", 404);
+            throw new Exception("Opdracht niet gevonden.", 404);
         }
 
         $company = $this->companyRepo->findById($request->company_id);
         if (!$company) {
-            throw new Exception("Company not found", 404);
+            throw new Exception("Bedrijf niet gevonden.", 404);
         }
 
         if ($this->taskRepo->hasAttempted($request)) {
-            throw new Exception("Task already attempted by this company", 400);
+            throw new Exception("Deze opdracht is al geprobeerd door " . $company->name, 400);
         }
 
         // --- FAILURE PATH ---
         if ($request->success === false) {
             $penalty = $task->penalty;
-            $amount = -abs($penalty); // Ensure negative
+            $amount = -abs($penalty);
 
-            $description = "Penalty of ƒ {$amount} for incorrect task submission: {$task->category} - {$task->name}";
+            $description = "Boete van ƒ " . abs($amount) . " wegens falen opdracht: {$task->category} - {$task->name}";
             $this->taskRepo->completeTask($request, $amount, $description);
 
             $npcService = new \Services\NpcService();
@@ -69,7 +69,7 @@ class TaskService
         $reward = $this->getRewardAmount($task, $successfulCompletions);
         $rankLabel = $this->getRankLabel($successfulCompletions);
 
-        $description = "Company {$company->name} got ƒ $reward for being the $rankLabel to complete task {$task->category} - {$task->name}";
+        $description = "Beloning van ƒ $reward voor het behalen van de $rankLabel plaats bij opdracht: {$task->category} - {$task->name}";
         $this->taskRepo->completeTask($request, $reward, $description);
 
         return TaskResponse::CreateFromCompletion($company, $task, $reward, true);

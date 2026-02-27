@@ -4,8 +4,8 @@ namespace Controllers;
 
 use Exception;
 use Models\DTO\StockTradeRequest;
-use Services\AuthService;
 use Services\StockService;
+use Services\AuthService;
 
 class StockController extends Controller
 {
@@ -29,7 +29,7 @@ class StockController extends Controller
     public function getCompanyStocks(int $companyId){
         try {
             if (!$companyId) {
-                $this->respondWithError(400, "Company ID is required");
+                $this->respondWithError(400, "Bedrijf ID is verplicht.");
             }
             $this->respond($this->stockService->getCompanyStocks($companyId));
         } catch (Exception $e){
@@ -51,16 +51,15 @@ class StockController extends Controller
             $request = $this->requestObjectFromPostedJson(StockTradeRequest::class);
 
             if ($user->role !== 'admin' && $user->company_id !== $request->buyer_id) {
-                $this->respondWithError(403, "Unauthorized: Je kunt alleen aandelen kopen voor je eigen patrouille.");
-                return;
+                $this->respondWithError(403, "Onbevoegd: Je kunt alleen aandelen kopen voor je eigen bedrijf.");
             }
 
             if (!isset($request->buyer_id, $request->stock_company_id, $request->amount)) {
-                $this->respondWithError(400, "Missing fields");
+                $this->respondWithError(400, "Ontbrekende verplichte velden.");
             }
 
             $this->stockService->tradeStock($request);
-            $this->respond(["message" => "Trade executed successfully"]);
+            $this->respond(["message" => "Transactie succesvol uitgevoerd."]);
         } catch (Exception $e){
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
         }

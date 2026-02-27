@@ -28,15 +28,14 @@ class TaskController extends Controller
     public function complete(){
         try {
             $user = $this->authService->getCurrentUserFromTokenPayload();
-             if ($user->role !== 'admin') {
-                $this->respondWithError(403, "Unauthorized: Alleen stafleden kunnen taken voltooien.");
-                return;
+            if ($user->role !== 'admin') {
+                $this->respondWithError(403, "Onbevoegd: Alleen stafleden kunnen taken voltooien.");
             }
 
             $request = $this->requestObjectFromPostedJson(TaskCompleteRequest::class);
 
             if (!isset($request->company_id) || !isset($request->task_id) || !isset($request->success)) {
-                $this->respondWithError(400, "Missing required fields");
+                $this->respondWithError(400, "Ontbrekende verplichte velden.");
             }
 
             $response = $this->taskService->completeTask($request);

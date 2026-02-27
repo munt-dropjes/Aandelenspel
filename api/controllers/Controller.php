@@ -43,7 +43,7 @@ class Controller
         $data = json_decode($json);
 
         if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
-            $this->respondWithError(400, "Invalid JSON provided");
+            $this->respondWithError(400, "Ongeldige JSON aangeleverd.");
         }
 
         $object = new $className();

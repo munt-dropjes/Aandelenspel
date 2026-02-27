@@ -24,14 +24,14 @@ class TransactionController extends Controller
         try {
             $user = $this->authService->getCurrentUserFromTokenPayload();
             if ($user->role !== "admin") {
-                $this->respondWithError(401, "Unauthorized");
+                $this->respondWithError(403, "Onbevoegd.");
             }
 
             $request = $this->requestObjectFromPostedJson(TransactionCreateRequest::class);
 
             $this->transactionService->processTransaction($request);
 
-            $this->respond(["message" => "Transaction processed successfully"]);
+            $this->respond(["message" => "Transactie succesvol verwerkt."]);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
         }
@@ -58,13 +58,13 @@ class TransactionController extends Controller
             $user = $this->authService->getCurrentUserFromTokenPayload();
             $request = $this->requestObjectFromPostedJson(TransactionTransferRequest::class);
             if (!isset($request->sender_id) || !isset($request->receiver_id) || !isset($request->amount) || !isset($request->description)) {
-                $this->respondWithError(400, "Missing required fields: sender_id, receiver_id, amount, description");
+                $this->respondWithError(400, "Ontbrekende verplichte velden");
                 return;
             }
 
             $this->transactionService->transfer($request, $user);
 
-            $this->respond(["message" => "Transfer completed successfully"]);
+            $this->respond(["message" => "Geld succesvol overgemaakt."]);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
         }

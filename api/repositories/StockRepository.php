@@ -1,6 +1,7 @@
 <?php
 namespace Repositories;
 
+use Models\Company;
 use Models\DTO\StockTradeRequest;
 use Models\Stock;
 use PDO;
@@ -41,7 +42,7 @@ class StockRepository extends Repository {
     /**
      * @throws Exception
      */
-    public function executeTrade(StockTradeRequest $req, int $totalCost): void {
+    public function executeTrade(StockTradeRequest $req, int $totalCost, Company $seller, Company $buyer): void {
         try {
             $this->connection->beginTransaction();
 
@@ -81,19 +82,19 @@ class StockRepository extends Repository {
             ]);
 
             // 4. Log Transaction
-            $sellerName = $req->seller_id ? "Company " . $req->seller_id : "The Bank";
+            $sellerName = $seller->name ?: "De Bank";
             $this->connection->prepare("INSERT INTO transactions (company_id, amount, description) VALUES (?, ?, ?)")
-                ->execute([$req->buyer_id, -$totalCost, "Bought {$req->amount} shares of Company {$req->stock_company_name} from $sellerName"]);
+                ->execute([$req->buyer_id, -$totalCost, "{$req->amount} aandelen {$req->stock_company_name} gekocht van $sellerName"]);
 
             if ($req->seller_id !== null) {
                 $this->connection->prepare("INSERT INTO transactions (company_id, amount, description) VALUES (?, ?, ?)")
-                    ->execute([$req->seller_id, $totalCost, "Sold {$req->amount} shares of Company {$req->stock_company_name} to Company {$req->buyer_name}"]);
+                    ->execute([$req->seller_id, $totalCost, "{$req->amount} aandelen {$req->stock_company_name} verkocht aan {$buyer->name}"]);
             }
 
             $this->connection->commit();
         } catch (Exception $e) {
             if ($this->connection->inTransaction()) $this->connection->rollBack();
-            throw new Exception("Trade failed: " . $e->getMessage(), 500);
+            throw new Exception("Transactie mislukt: " . $e->getMessage(), 500);
         }
     }
 

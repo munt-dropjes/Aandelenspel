@@ -18,7 +18,6 @@ class AuthController extends Controller
     public function login() {
         try {
             $user = $this->requestObjectFromPostedJson(UserLoginRequest::class);
-
             $user = $this->authService->login($user);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode(), $e->getMessage());
@@ -28,13 +27,13 @@ class AuthController extends Controller
         try{
             $jwt = $this->generateToken($user);
         } catch (Exception $e) {
-            $this->respondWithError(500, 'Token generation failed: ' . $e->getMessage());
+            $this->respondWithError(500, 'Genereren van token mislukt: ' . $e->getMessage());
             return;
         }
 
         $this->respond(
             array(
-                "message" => "Login successful",
+                "message" => "Login succesvol.",
                 "token" => $jwt,
                 "user" => $user,
                 "expireAt" => date('d-m-Y H:i:s', (time() + JwtConfig::getExpireTime()))

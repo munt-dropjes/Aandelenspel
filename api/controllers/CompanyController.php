@@ -31,7 +31,7 @@ class CompanyController extends Controller{
             $user = $this->authService->getCurrentUserFromTokenPayload();
             $company = $this->companyService->getById((int)$id, $user);
             if (!$company) {
-                $this->respondWithError(404, "Company not found");
+                $this->respondWithError(404, "Bedrijf niet gevonden.");
             }
             $this->respond($company);
         } catch (Exception $e) {
