@@ -58,7 +58,7 @@
                     <div class="card-body text-center py-5 d-flex flex-column justify-content-center" v-if="!currentTask">
                         <i class="bi bi-list-check display-1 text-muted mb-3"></i>
                         <h4 class="text-muted">Selecteer een opdracht</h4>
-                        <p class="text-muted">Kies links een categorie en opdracht om resultaten in te voeren.</p>
+                        <p class="text-muted">Kies links een categorie en opdracht om resultaten in te zien.</p>
                     </div>
 
                     <div class="card-body" v-else>
@@ -104,48 +104,49 @@
                             </table>
                         </div>
 
-                        <h6 class="fw-bold border-bottom pb-2 mb-3">Nieuwe Poging Registreren</h6>
-                        <div class="row g-3">
-                            <div v-for="c in remainingCompanies" :key="c.id" class="col-md-6 col-lg-4">
-                                <div class="card h-100 border-0 shadow-sm" :style="{ borderLeft: `5px solid ${c.color} !important` }">
-                                    <div class="card-body p-0">
-                                        <div class="p-2 fw-bold text-truncate border-bottom">{{ c.name }}</div>
+                        <template v-if="isAdmin">
+                            <h6 class="fw-bold border-bottom pb-2 mb-3">Nieuwe Poging Registreren</h6>
+                            <div class="row g-3">
+                                <div v-for="c in remainingCompanies" :key="c.id" class="col-md-6 col-lg-4">
+                                    <div class="card h-100 border-0 shadow-sm" :style="{ borderLeft: `5px solid ${c.color} !important` }">
+                                        <div class="card-body p-0">
+                                            <div class="p-2 fw-bold text-truncate border-bottom">{{ c.name }}</div>
 
-                                        <div class="d-flex w-100">
-                                            <button
-                                                @click="submitCompletion(c.id, true, c.name)"
-                                                class="btn btn-success w-50 rounded-0 rounded-bottom-start"
-                                                :disabled="processing"
-                                                title="Gelukt"
-                                            >
-                                                <i class="bi bi-check-lg fs-5"></i>
-                                            </button>
+                                            <div class="d-flex w-100">
+                                                <button
+                                                    @click="submitCompletion(c.id, true, c.name)"
+                                                    class="btn btn-success w-50 rounded-0 rounded-bottom-start"
+                                                    :disabled="processing"
+                                                    title="Gelukt"
+                                                >
+                                                    <i class="bi bi-check-lg fs-5"></i>
+                                                </button>
 
-                                            <button
-                                                @click="submitCompletion(c.id, false, c.name)"
-                                                class="btn btn-danger w-50 rounded-0 rounded-bottom-end"
-                                                :disabled="processing"
-                                                title="Mislukt"
-                                            >
-                                                <i class="bi bi-x-lg fs-5"></i>
-                                            </button>
+                                                <button
+                                                    @click="submitCompletion(c.id, false, c.name)"
+                                                    class="btn btn-danger w-50 rounded-0 rounded-bottom-end"
+                                                    :disabled="processing"
+                                                    title="Mislukt"
+                                                >
+                                                    <i class="bi bi-x-lg fs-5"></i>
+                                                </button>
+                                            </div>
+
                                         </div>
-
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div v-if="remainingCompanies.length === 0" class="alert alert-secondary mt-3 text-center">
-                            <i class="bi bi-check-circle-fill me-2"></i> Iedereen heeft een poging gewaagd!
-                        </div>
+                            <div v-if="remainingCompanies.length === 0" class="alert alert-secondary mt-3 text-center">
+                                <i class="bi bi-check-circle-fill me-2"></i> Iedereen heeft een poging gewaagd!
+                            </div>
 
-                        <div v-if="feedback" :class="['alert mt-3', feedbackType === 'error' ? 'alert-danger' : feedbackType === 'penalty' ? 'alert-danger border-danger' : 'alert-success']">
-                            <i v-if="feedbackType === 'success'" class="bi bi-trophy-fill me-2"></i>
-                            <i v-if="feedbackType === 'penalty'" class="bi bi-exclamation-octagon-fill me-2"></i>
-                            {{ feedback }}
-                        </div>
-
+                            <div v-if="feedback" :class="['alert mt-3', feedbackType === 'error' ? 'alert-danger' : feedbackType === 'penalty' ? 'alert-danger border-danger' : 'alert-success']">
+                                <i v-if="feedbackType === 'success'" class="bi bi-trophy-fill me-2"></i>
+                                <i v-if="feedbackType === 'penalty'" class="bi bi-exclamation-octagon-fill me-2"></i>
+                                {{ feedback }}
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -156,9 +157,11 @@
 <script setup>
 import { ref, inject, onMounted, computed } from 'vue';
 import { apiCall } from '../services/api';
+import { useAuth } from '../composables/useAuth';
 
 const companies = inject('companies');
 const reloadCompanies = inject('reloadCompanies');
+const { isAdmin } = useAuth();
 
 const tasks = ref([]);
 const loading = ref(false);
@@ -228,7 +231,7 @@ const remainingCompanies = computed(() => {
 });
 
 /**
- * Submit the result
+ * Submit the result (Only accessible to Admins in UI)
  */
 const submitCompletion = async (companyId, isSuccess, companyName) => {
     const action = isSuccess ? "SUCCES" : "FALEN";
@@ -250,11 +253,9 @@ const submitCompletion = async (companyId, isSuccess, companyName) => {
 
         if (isSuccess) {
             feedbackType.value = 'success';
-            // Result likely contains: reward, success=true
             feedback.value = `${result.company_name} geslaagd! Beloning: ƒ ${result.reward.toLocaleString()}.`;
         } else {
             feedbackType.value = 'penalty';
-            // Check if result has penalty field, or just imply it from success=false
             feedback.value = `${result.company_name} gefaald.`;
         }
 
