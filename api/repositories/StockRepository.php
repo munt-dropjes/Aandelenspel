@@ -46,8 +46,12 @@ class StockRepository extends Repository {
             $this->connection->beginTransaction();
 
             // 1. Transfer Cash
-            $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ?")
-                ->execute([$totalCost, $req->buyer_id]);
+            $stmtBuyer = $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ? AND cash >= ?");
+            $stmtBuyer->execute([$totalCost, $req->buyer_id, $totalCost]);
+
+            if ($stmtBuyer->rowCount() === 0) {
+                throw new Exception("Transactie mislukt: Koper heeft onvoldoende saldo op het moment van uitvoeren.", 400);
+            }
 
             if ($req->seller_id !== null) {
                 $this->connection->prepare("UPDATE companies SET cash = cash + ? WHERE id = ?")
@@ -55,13 +59,17 @@ class StockRepository extends Repository {
             }
 
             // 2. Transfer Stock (Remove from Seller)
-            $sqlSub = "UPDATE shares SET amount = amount - :amt WHERE company_id = :sid AND ";
+            $sqlSub = "UPDATE shares SET amount = amount - :amt WHERE company_id = :sid AND amount >= :amt AND ";
             $sqlSub .= ($req->seller_id === null) ? "owner_id IS NULL" : "owner_id = :oid";
             $stmtSub = $this->connection->prepare($sqlSub);
             $stmtSub->bindValue(':amt', $req->amount);
             $stmtSub->bindValue(':sid', $req->stock_company_id);
             if ($req->seller_id !== null) $stmtSub->bindValue(':oid', $req->seller_id);
             $stmtSub->execute();
+
+            if ($stmtSub->rowCount() === 0) {
+                throw new Exception("Transactie mislukt: Verkoper heeft onvoldoende aandelen op het moment van uitvoeren.", 400);
+            }
 
             // 3. Transfer Stock (Add to Buyer)
             $sqlAdd = "INSERT INTO shares (company_id, owner_id, amount) VALUES (:sid, :bid, :amt)

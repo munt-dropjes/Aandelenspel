@@ -56,14 +56,25 @@ class TransactionRepository extends Repository
         try {
             $this->connection->beginTransaction();
 
-            $stmtUpdate = $this->connection->prepare("UPDATE companies SET cash = cash + :amount WHERE id = :id");
+            $sqlUpdate = "UPDATE companies SET cash = cash + :amount WHERE id = :id";
+            if ($request->amount < 0) {
+                $sqlUpdate .= " AND cash >= :absAmount";
+            }
+
+            $stmtUpdate = $this->connection->prepare($sqlUpdate);
             $stmtUpdate->bindParam(':amount', $request->amount);
             $stmtUpdate->bindParam(':id', $request->company_id, PDO::PARAM_INT);
+
+            if ($request->amount < 0) {
+                $absAmount = abs($request->amount);
+                $stmtUpdate->bindParam(':absAmount', $absAmount, PDO::PARAM_INT);
+            }
+
             $stmtUpdate->execute();
 
             if ($stmtUpdate->rowCount() === 0) {
                 $this->connection->rollBack();
-                return false;
+                throw new Exception("Onvoldoende saldo of bedrijf niet gevonden tijdens handmatige transactie.", 400);
             }
 
             $stmtLog = $this->connection->prepare("INSERT INTO transactions (company_id, amount, description) VALUES (:cid, :amount, :description)");
@@ -91,8 +102,12 @@ class TransactionRepository extends Repository
             $this->connection->beginTransaction();
 
             // Deduct from sender
-            $stmtDeduct = $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ?");
-            $stmtDeduct->execute([$request->amount, $request->sender_id]);
+            $stmtDeduct = $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ? AND cash >= ?");
+            $stmtDeduct->execute([$request->amount, $request->sender_id, $request->amount]);
+
+            if ($stmtDeduct->rowCount() === 0) {
+                throw new Exception("Zender heeft onvoldoende saldo op het moment van overmaken.", 400);
+            }
 
             // Add to receiver
             $stmtAdd = $this->connection->prepare("UPDATE companies SET cash = cash + ? WHERE id = ?");

@@ -105,19 +105,25 @@ class TradeOfferRepository extends Repository
             $stmt = $this->connection->prepare("UPDATE trade_offers SET status = 'accepted' WHERE id = ? AND status = 'pending'");
             $stmt->execute([$offer->id]);
             if ($stmt->rowCount() === 0) {
-                throw new Exception("Offer was already processed.", 400);
+                throw new Exception("Bod is inmiddels al verwerkt of geannuleerd.", 400);
             }
 
             // 2. Swap Cash
-            $stmt = $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ?");
-            $stmt->execute([$offer->total_price, $offer->buyer_id]);
+            $stmt = $this->connection->prepare("UPDATE companies SET cash = cash - ? WHERE id = ? AND cash >= ?");
+            $stmt->execute([$offer->total_price, $offer->buyer_id, $offer->total_price]);
+            if ($stmt->rowCount() === 0) {
+                throw new Exception("Koper heeft onvoldoende saldo op het moment van accepteren.", 400);
+            }
 
             $stmt = $this->connection->prepare("UPDATE companies SET cash = cash + ? WHERE id = ?");
             $stmt->execute([$offer->total_price, $offer->seller_id]);
 
             // 3. Deduct Shares from Seller
-            $stmt = $this->connection->prepare("UPDATE shares SET amount = amount - ? WHERE company_id = ? AND owner_id = ?");
-            $stmt->execute([$offer->amount, $offer->target_company_id, $offer->seller_id]);
+            $stmt = $this->connection->prepare("UPDATE shares SET amount = amount - ? WHERE company_id = ? AND owner_id = ? AND amount >= ?");
+            $stmt->execute([$offer->amount, $offer->target_company_id, $offer->seller_id, $offer->amount]);
+            if ($stmt->rowCount() === 0) {
+                throw new Exception("Je hebt onvoldoende aandelen op het moment van accepteren.", 400);
+            }
 
             // 4. Add Shares to Buyer
             $stmt = $this->connection->prepare("
