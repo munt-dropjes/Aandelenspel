@@ -168,6 +168,7 @@ import { apiCall } from '../services/api';
 import { useAuth } from '../composables/useAuth';
 
 const companies = inject('companies');
+const checkPendingOffers = inject('checkPendingOffers');
 const reloadCompanies = inject('reloadCompanies');
 const { myCompanyId, isAdmin } = useAuth();
 
@@ -274,6 +275,11 @@ const respondToOffer = async (offerId, action) => {
         }
 
         await loadOffers();
+
+        if (checkPendingOffers) {
+            await checkPendingOffers();
+        }
+
     } catch (e) {
         alert(`Fout: ${e.message}`);
     } finally {

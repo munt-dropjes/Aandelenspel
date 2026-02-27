@@ -2,9 +2,9 @@
     <div id="app">
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-primary">
             <div class="container">
-        <span class="navbar-brand fw-bold text-uppercase">
-          <i class="bi bi-graph-up-arrow me-2"></i>Aandelen Spel
-        </span>
+                <span class="navbar-brand fw-bold text-uppercase">
+                  <i class="bi bi-graph-up-arrow me-2"></i>Aandelen Spel
+                </span>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon"></span>
@@ -24,8 +24,12 @@
                         </li>
 
                         <li class="nav-item">
-                            <router-link to="/handelsverzoeken" class="nav-link" active-class="active">
+                            <router-link to="/handelsverzoeken" class="nav-link position-relative" active-class="active">
                                 <i class="bi bi-briefcase-fill me-1"></i> Handelsverzoeken
+                                <span v-if="incomingOffersCount > 0" class="position-absolute top-10 start-100 translate-middle badge rounded-pill bg-danger shadow-sm animate-pop">
+                                    {{ incomingOffersCount }}
+                                    <span class="visually-hidden">Nieuwe verzoeken</span>
+                                </span>
                             </router-link>
                         </li>
                     </ul>
@@ -78,9 +82,10 @@
 </template>
 
 <script setup>
-import { provide, onMounted, onUnmounted } from 'vue';
+import { provide, onMounted, onUnmounted, ref } from 'vue';
 import { useGameEngine } from './composables/useGameEngine';
 import { useAuth } from './composables/useAuth';
+import { apiCall } from './services/api';
 
 // Initialize Engine
 const {
@@ -93,15 +98,45 @@ const {
 } = useGameEngine();
 
 // Initialize Auth
-const { initAuth, isAdmin, logout, username } = useAuth();
+const { initAuth, isAdmin, logout, username, myCompanyId } = useAuth();
+
+const incomingOffersCount = ref(0);
+let offerPollingTimer = null;
+
+const checkPendingOffers = async () => {
+    if (!localStorage.getItem('authToken')) return;
+
+    try {
+        const offers = await apiCall('/api/offers/pending');
+        if (offers) {
+            if (isAdmin.value) {
+                incomingOffersCount.value = offers.length;
+            } else {
+                // For normal players, only count offers where they are the SELLER (meaning action is required)
+                incomingOffersCount.value = offers.filter(o => Number(o.seller_id) === Number(myCompanyId.value)).length;
+            }
+        } else {
+            incomingOffersCount.value = 0;
+        }
+    } catch (e) {
+        console.error("Failed to poll offers", e);
+    }
+};
 
 onMounted(() => {
     initAuth();
     startEngine();
+
+    // Check immediately, then every 10 seconds so negotiations feel fast
+    checkPendingOffers();
+    offerPollingTimer = setInterval(checkPendingOffers, 10000);
 });
 
 onUnmounted(() => {
     stopEngine();
+    if (offerPollingTimer) {
+        clearInterval(offerPollingTimer);
+    }
 });
 
 // Provide state to all child components
@@ -109,6 +144,7 @@ provide('companies', companies);
 provide('reloadCompanies', loadCompanies);
 provide('history', history);
 provide('graphTrigger', graphTrigger);
+provide('checkPendingOffers', checkPendingOffers);
 </script>
 
 <style>
@@ -118,4 +154,13 @@ provide('graphTrigger', graphTrigger);
 /* Optional: Make the dropdown nicer */
 .dropdown-menu-dark { background-color: #343a40; border-color: #495057; }
 .dropdown-item:hover { background-color: #495057; }
+
+.animate-pop {
+    animation: pop 0.3s ease-out 1;
+}
+@keyframes pop {
+    0% { transform: scale(0) translate(-50%, -50%); }
+    80% { transform: scale(1.2) translate(-50%, -50%); }
+    100% { transform: scale(1) translate(-50%, -50%); }
+}
 </style>
