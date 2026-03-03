@@ -27,6 +27,7 @@ services:
       - .env
     volumes:
       - ./api:/api
+    command: sh -c "composer install && php-fpm"
     networks:
       - aandelenspel-network
 
