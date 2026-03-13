@@ -11,31 +11,43 @@
                 </button>
 
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ms-auto" v-if="gameState === 'ACTIVE'">
-                        <li class="nav-item"><router-link to="/" class="nav-link" active-class="active">Regels</router-link></li>
-                        <li class="nav-item"><router-link to="/opdrachten" class="nav-link" active-class="active">Opdrachten</router-link></li>
-                        <li class="nav-item"><router-link to="/aandelen" class="nav-link" active-class="active">Aandelenverdeling</router-link></li>
-                        <li class="nav-item"><router-link to="/grafiek" class="nav-link" active-class="active">Grafiek</router-link></li>
 
+                    <ul class="navbar-nav me-auto">
                         <li class="nav-item">
-                            <router-link to="/transacties" class="nav-link" active-class="active">
-                                {{ isAdmin ? 'Admin Overzicht' : 'Mijn Rekening' }}
-                            </router-link>
+                            <router-link to="/" class="nav-link" active-class="active">Regels</router-link>
                         </li>
 
-                        <li class="nav-item">
-                            <router-link to="/handelsverzoeken" class="nav-link position-relative" active-class="active">
-                                <i class="bi bi-briefcase-fill me-1"></i> Handelsverzoeken
-                                <span v-if="incomingOffersCount > 0" class="position-absolute top-10 start-100 translate-middle badge rounded-pill bg-danger shadow-sm animate-pop">
-                                    {{ incomingOffersCount }}
-                                    <span class="visually-hidden">Nieuwe verzoeken</span>
-                                </span>
-                            </router-link>
-                        </li>
+                        <template v-if="username && gameState === 'ACTIVE'">
+                            <li class="nav-item"><router-link to="/opdrachten" class="nav-link" active-class="active">Opdrachten</router-link></li>
+                            <li class="nav-item"><router-link to="/aandelen" class="nav-link" active-class="active">Aandelenverdeling</router-link></li>
+                            <li class="nav-item"><router-link to="/grafiek" class="nav-link" active-class="active">Grafiek</router-link></li>
+
+                            <li class="nav-item">
+                                <router-link to="/transacties" class="nav-link" active-class="active">
+                                    {{ isAdmin ? 'Admin Overzicht' : 'Mijn Rekening' }}
+                                </router-link>
+                            </li>
+
+                            <li class="nav-item">
+                                <router-link to="/handelsverzoeken" class="nav-link position-relative" active-class="active">
+                                    <i class="bi bi-briefcase-fill me-1"></i> Handelsverzoeken
+                                    <span v-if="incomingOffersCount > 0" class="position-absolute top-10 start-100 translate-middle badge rounded-pill bg-danger shadow-sm animate-pop">
+                                        {{ incomingOffersCount }}
+                                        <span class="visually-hidden">Nieuwe verzoeken</span>
+                                    </span>
+                                </router-link>
+                            </li>
+                        </template>
                     </ul>
 
-                    <ul class="navbar-nav ms-auto" v-if="username">
-                        <li class="nav-item dropdown">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item" v-if="!username">
+                            <router-link to="/login" class="nav-link fw-bold text-success">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Inloggen
+                            </router-link>
+                        </li>
+
+                        <li class="nav-item dropdown" v-if="username">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person-circle fs-5 me-2"></i>
                                 <span class="fw-bold">{{ username }}</span>
@@ -72,7 +84,7 @@
         </nav>
 
         <main class="container my-4">
-            <div class="row mb-4" v-if="gameState === 'ACTIVE'">
+            <div class="row mb-4" v-if="username && gameState === 'ACTIVE'">
                 <div v-for="company in companies" :key="company.id" class="col-md-4 col-lg">
                     <div class="card text-white shadow-sm mb-2"
                          :style="{ backgroundColor: company.color, borderColor: company.color }">
@@ -90,7 +102,7 @@
                 </div>
             </div>
 
-            <div class="alert alert-warning text-center fw-bold shadow-sm" v-if="gameState === 'SETUP' && !isAdmin">
+            <div class="alert alert-warning text-center fw-bold shadow-sm" v-if="username && gameState === 'SETUP' && !isAdmin">
                 De game wordt momenteel voorbereid door de spelleiding. Even geduld a.u.b...
             </div>
 
@@ -175,7 +187,6 @@ onUnmounted(() => {
     }
 });
 
-// Provide state to all child components
 provide('companies', companies);
 provide('reloadCompanies', loadCompanies);
 provide('history', history);
@@ -186,13 +197,10 @@ provide('refreshGameState', loadGameState);
 </script>
 
 <style>
-/* Highlight active links */
 .navbar-nav .nav-link.active { color: #fff !important; font-weight: bold; border-bottom: 2px solid #0d6efd; }
-
 .dropdown-menu-dark { background-color: #343a40; border-color: #495057; }
 .dropdown-item:hover { background-color: #495057; }
 
-/* Animation for the notification badge to grab attention */
 .animate-pop {
     animation: pop 0.3s ease-out 1;
 }
