@@ -13,9 +13,29 @@ DROP TABLE IF EXISTS `transactions`;
 DROP TABLE IF EXISTS `shares`;
 DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `companies`;
+DROP TABLE IF EXISTS `trade_offers`;
+DROP TABLE IF EXISTS `game_settings`;
 
 -- --------------------------------------------------------
--- 2. Create Companies Table
+-- 2. Create Game Settings Table
+-- --------------------------------------------------------
+CREATE TABLE `game_settings`
+(
+    `id` INT(11) NOT NULL DEFAULT 1,
+    `state` ENUM('SETUP', 'ACTIVE') NOT NULL DEFAULT 'SETUP',
+    `starting_cash` BIGINT(20) NOT NULL DEFAULT 100000,
+    `total_shares_per_company` INT(11) NOT NULL DEFAULT 100,
+    `starting_shares_own` INT(11) NOT NULL DEFAULT 25,
+    `starting_shares_cross` INT(11) NOT NULL DEFAULT 5,
+    `ai_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+    `ai_difficulty` INT(11) NOT NULL DEFAULT 2,
+    `npc_bankruptcy_safeguard` INT(11) NOT NULL DEFAULT 1000,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- 3. Create Companies Table
 -- Matches app/models/Company.php
 -- --------------------------------------------------------
 CREATE TABLE `companies`
@@ -31,7 +51,7 @@ CREATE TABLE `companies`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 3. Create Users Table
+-- 4. Create Users Table
 -- Matches app/models/User.php
 -- --------------------------------------------------------
 CREATE TABLE `users`
@@ -50,7 +70,7 @@ CREATE TABLE `users`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 4. Create Transactions Table
+-- 5. Create Transactions Table
 -- Matches app/models/Transaction.php
 -- --------------------------------------------------------
 CREATE TABLE `transactions`
@@ -66,7 +86,7 @@ CREATE TABLE `transactions`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 5. Create Shares Table (Portfolio)
+-- 6. Create Shares Table (Portfolio)
 -- Matches app/models/Stock.php
 -- --------------------------------------------------------
 CREATE TABLE `shares`
@@ -82,7 +102,7 @@ CREATE TABLE `shares`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 6. Create Companies History Table
+-- 7. Create Companies History Table
 -- --------------------------------------------------------
 CREATE TABLE `companies_history`
 (
@@ -97,7 +117,7 @@ CREATE TABLE `companies_history`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 7. Task Categories Table
+-- 8. Task Categories Table
 -- --------------------------------------------------------
 CREATE TABLE `task_categories`
 (
@@ -114,7 +134,7 @@ CREATE TABLE `task_categories`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 8. Tasks Table
+-- 9. Tasks Table
 -- --------------------------------------------------------
 CREATE TABLE `tasks`
 (
@@ -126,7 +146,7 @@ CREATE TABLE `tasks`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 9. Task Completions Table
+-- 10. Task Completions Table
 -- --------------------------------------------------------
 CREATE TABLE `task_completions`
 (
@@ -142,7 +162,7 @@ CREATE TABLE `task_completions`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 10. Trade Offer Table
+-- 11. Trade Offer Table
 -- --------------------------------------------------------
 CREATE TABLE `trade_offers` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -160,7 +180,13 @@ CREATE TABLE `trade_offers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- 11. Seed Companies
+-- 12. Seed GameSettings
+-- --------------------------------------------------------
+INSERT INTO `game_settings` (`id`, `state`, `starting_cash`, `total_shares_per_company`, `starting_shares_own`, `starting_shares_cross`, `ai_enabled`, `ai_difficulty`, `npc_bankruptcy_safeguard`)
+VALUES (1, 'SETUP', 100000, 100, 25, 5, 1, 2, 1000);
+
+-- --------------------------------------------------------
+-- 13. Seed Companies
 -- --------------------------------------------------------
 INSERT INTO `companies` (`id`, `name`, `color`, `cash`, `is_npc`)
 VALUES (1, 'Haviken', '#ff69b4', 100000, 0),
@@ -171,7 +197,7 @@ VALUES (1, 'Haviken', '#ff69b4', 100000, 0),
        (6, 'De Staf', '#E53935', 100000, 1);
 
 -- --------------------------------------------------------
--- 12. Seed Users (Depends on Companies)
+-- 14. Seed Users (Depends on Companies)
 -- --------------------------------------------------------
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `created_at`)
 VALUES (1, 'StockMaster', 'admin@game.com', '$2y$12$2NLsHOtVvZIXtew35SmxO.mCkj/.HywBVwfCB3Fflq1F6s0C8ZryK', 'admin',
@@ -185,7 +211,7 @@ VALUES  (1, 'Haviken', 'haviken@game.com', '$2y$12$2NLsHOtVvZIXtew35SmxO.mCkj/.H
         (5, 'Valken', 'valken@game.com', '$2y$12$2NLsHOtVvZIXtew35SmxO.mCkj/.HywBVwfCB3Fflq1F6s0C8ZryK', 'user');
 
 -- --------------------------------------------------------
--- 13. Seed Shares
+-- 15. Seed Shares
 -- --------------------------------------------------------
 -- Example: 6 Companies total (5 Players + 1 NPC). Total 100 shares each.
 -- A. Own Shares: Each company starts with 25 shares of itself.
@@ -205,7 +231,7 @@ SELECT `id`, NULL, 50
 FROM `companies`;
 
 -- --------------------------------------------------------
--- 14. Seed Task Categories
+-- 16. Seed Task Categories
 -- --------------------------------------------------------
 INSERT INTO `task_categories` (`label`, `reward_p1`, `reward_p2`, `reward_p3`, `reward_p4`, `reward_p5`, `penalty`)
 VALUES ('3e Klasse', 25000, 12500, 5000, -12500, -25000, -25000),
@@ -215,7 +241,7 @@ VALUES ('3e Klasse', 25000, 12500, 5000, -12500, -25000, -25000),
        ('Vragen', 5000, 2500, 1000, -2500, -5000, -5000);
 
 -- --------------------------------------------------------
--- 15. Seed Tasks
+-- 17. Seed Tasks
 -- --------------------------------------------------------
 -- 3e Klasse
 INSERT INTO `tasks` (`category_id`, `name`)

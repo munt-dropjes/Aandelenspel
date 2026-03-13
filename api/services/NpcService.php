@@ -4,6 +4,7 @@ namespace Services;
 
 use Config\NpcConfig;
 use Exception;
+use Models\DTO\TradeOfferRequest;
 use Models\DTO\TransactionCreateRequest;
 use Repositories\CompanyRepository;
 use Repositories\TransactionRepository;
@@ -24,6 +25,10 @@ class NpcService
      * @throws Exception
      */
     public function processTick(): void {
+        if (!NpcConfig::isEnabled() || !NpcConfig::isGameActive()) {
+            return;
+        }
+
         $companies = $this->companyRepo->findAll();
         $npcs = array_filter($companies, fn($c) => $c->is_npc == 1);
 
@@ -31,7 +36,7 @@ class NpcService
             $roll = rand(1, NpcConfig::getRollMax());
 
             if ($roll <= NpcConfig::getThresholdIdle()) {
-                continue; // Do nothing
+                continue;
             }
             elseif ($roll <= NpcConfig::getThresholdSubsidy()) {
                 // Config handles the math and randomization
@@ -53,6 +58,8 @@ class NpcService
     }
 
     public function executeVultureProtocol(int $strugglingCompanyId): void {
+        if (!NpcConfig::isEnabled() || NpcConfig::getDifficulty() < 2) return;
+
         try {
             $target = $this->companyRepo->findById($strugglingCompanyId);
             if (!$target || $target->is_npc) return;
@@ -62,9 +69,9 @@ class NpcService
             $deStaf = reset($npcs);
             if (!$deStaf) return;
 
-            // Algorithm 1 Math: Value = Cash / 100
+            // Algorithm Math: Value = Cash / 100
             $stockPrice = max(1, (int)($target->cash / 100));
-            $amountToBuy = 5;
+            $amountToBuy = NpcConfig::getVultureBuyAmount();
             $marketValue = $stockPrice * $amountToBuy;
 
             // 30% discount lowball
@@ -73,7 +80,7 @@ class NpcService
 
             if ($deStaf->cash < $lowballPrice) return;
 
-            $request = new \Models\DTO\TradeOfferRequest();
+            $request = new TradeOfferRequest();
             $request->seller_id = $strugglingCompanyId;
             $request->target_company_id = $strugglingCompanyId;
             $request->amount = $amountToBuy;
