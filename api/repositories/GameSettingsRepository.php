@@ -43,7 +43,7 @@ class GameSettingsRepository extends Repository {
     /**
      * @throws Exception
      */
-    public function buildNewGame(GameSettings $settings, array $companiesData): void {
+    public function buildNewGame(GameSettings $settings, array $companiesData, array $npcsData = []): void {
         try {
             $this->connection->beginTransaction();
 
@@ -52,23 +52,29 @@ class GameSettingsRepository extends Repository {
 
             $this->updateSettings($settings);
 
-            $stmtComp = $this->connection->prepare("INSERT INTO companies (name, color, cash, is_npc) VALUES (?, ?, ?, 0)");
+            $stmtComp = $this->connection->prepare("INSERT INTO companies (name, color, cash, is_npc) VALUES (?, ?, ?, ?)");
             $stmtUser = $this->connection->prepare("INSERT INTO users (company_id, username, email, password, role) VALUES (?, ?, ?, ?, 'user')");
 
             $companyIds = [];
+
+            // 1. Insert Human Companies
             foreach ($companiesData as $cData) {
-                $stmtComp->execute([$cData['name'], $cData['color'], $settings->starting_cash]);
+                $stmtComp->execute([$cData['name'], $cData['color'], $settings->starting_cash, 0]);
                 $cid = $this->connection->lastInsertId();
                 $companyIds[] = $cid;
+
                 $stmtUser->execute([$cid, $cData['username'], $cData['email'], $cData['hash']]);
             }
 
+            // 2. Insert Dynamic NPCs
             if ($settings->ai_enabled) {
-                $this->connection->prepare("INSERT INTO companies (name, color, cash, is_npc) VALUES (?, ?, ?, 1)")
-                    ->execute(["De Staf", "#E53935", $settings->starting_cash]);
-                $companyIds[] = $this->connection->lastInsertId();
+                foreach ($npcsData as $nData) {
+                    $stmtComp->execute([$nData['name'], $nData['color'], $settings->starting_cash, 1]);
+                    $companyIds[] = $this->connection->lastInsertId();
+                }
             }
 
+            // 3. Distribute Shares across EVERYONE (Humans + NPCs)
             $stmtShare = $this->connection->prepare("INSERT INTO shares (company_id, owner_id, amount) VALUES (?, ?, ?)");
             foreach ($companyIds as $targetId) {
                 $bankShares = $settings->total_shares_per_company;

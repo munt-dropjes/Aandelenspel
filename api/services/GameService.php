@@ -47,6 +47,7 @@ class GameService {
         $companiesData = [];
         $credentials = [];
 
+        // Generate Human Players
         foreach ($payload->companies as $c) {
             $pin = rand(1000, 9999);
             $username = str_replace(' ', '', $c->name);
@@ -68,7 +69,19 @@ class GameService {
             ];
         }
 
-        $this->settingsRepo->buildNewGame($settings, $companiesData);
+        // Format NPC Data
+        $npcsData = [];
+        if (isset($payload->npcs) && is_array($payload->npcs)) {
+            foreach ($payload->npcs as $npc) {
+                $npcsData[] = [
+                    'name' => $npc->name,
+                    'color' => $npc->color
+                ];
+            }
+        }
+
+        // Send both to the Repository to build the database
+        $this->settingsRepo->buildNewGame($settings, $companiesData, $npcsData);
 
         return $credentials;
     }
