@@ -12,4 +12,6 @@ class GameSettings {
     public bool $ai_enabled;
     public int $ai_difficulty;
     public int $npc_bankruptcy_safeguard;
+
+    public string $updated_at;
 }

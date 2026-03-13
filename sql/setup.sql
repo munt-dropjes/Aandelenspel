@@ -12,8 +12,8 @@ DROP TABLE IF EXISTS `companies_history`;
 DROP TABLE IF EXISTS `transactions`;
 DROP TABLE IF EXISTS `shares`;
 DROP TABLE IF EXISTS `users`;
-DROP TABLE IF EXISTS `companies`;
 DROP TABLE IF EXISTS `trade_offers`;
+DROP TABLE IF EXISTS `companies`;
 DROP TABLE IF EXISTS `game_settings`;
 
 -- --------------------------------------------------------

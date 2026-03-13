@@ -1,10 +1,8 @@
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref } from 'vue';
 import { apiCall } from '../services/api';
 
 export function useGameEngine() {
     const companies = reactive([]);
-
-    // The Single Source of Truth for the Graph
     const history = reactive({
         labels: [],
         datasets: []
@@ -14,7 +12,19 @@ export function useGameEngine() {
     const lastRecordedTime = ref(null);
     let timer = null;
 
-    // Helper: Ensure the graph lines (datasets) exist
+    const gameState = ref('SETUP');
+
+    const loadGameState = async () => {
+        try {
+            const data = await apiCall('/api/game/settings');
+            if (data) {
+                gameState.value = data.state;
+            }
+        } catch (e) {
+            console.error("Engine: Failed to fetch game state", e);
+        }
+    };
+
     const ensureGraphStructure = () => {
         if (history.datasets.length === 0 && companies.length > 0) {
             console.log("Engine: Initializing Graph Structure");
@@ -93,11 +103,8 @@ export function useGameEngine() {
                 const newLabels = Object.keys(groupedByTime).sort();
 
                 newLabels.forEach(time => {
-                    // Prevent duplicates in labels
                     if (history.labels.length === 0 || history.labels[history.labels.length - 1] !== time) {
                         history.labels.push(time);
-
-                        // Push data to datasets
                         history.datasets.forEach(ds => {
                             const val = groupedByTime[time][ds.id] ?? null;
                             ds.data.push(val);
@@ -113,6 +120,8 @@ export function useGameEngine() {
     };
 
     const performHeartbeat = async () => {
+        if (gameState.value === 'SETUP') return;
+
         const token = localStorage.getItem('authToken');
         if (!token) return;
 
@@ -129,8 +138,16 @@ export function useGameEngine() {
 
     const startEngine = async () => {
         console.log("Engine: Starting...");
+
+        // 1. Check State First
+        await loadGameState();
+
+        // 2. Abort engine if in SETUP
+        if (gameState.value === 'SETUP') return;
+
         await loadCompanies();
         await loadHistory();
+
         if (!timer) {
             timer = setInterval(performHeartbeat, 60000);
         }
@@ -148,7 +165,9 @@ export function useGameEngine() {
         companies,
         history,
         graphTrigger,
-        loadCompanies, // Exposed as reloadCompanies in App
+        gameState,
+        loadGameState,
+        loadCompanies,
         startEngine,
         stopEngine
     };
