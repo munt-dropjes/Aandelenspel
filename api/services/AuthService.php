@@ -8,13 +8,16 @@ use Exception;
 use JetBrains\PhpStorm\NoReturn;
 use Models\DTO\UserLoginRequest;
 use Models\User;
+use Repositories\GameSettingsRepository;
 use Repositories\UserRepository;
 
 class AuthService {
     private UserRepository $userRepository;
+    private GameSettingsRepository $settingsRepo;
 
     function __construct() {
         $this->userRepository = new UserRepository();
+        $this->settingsRepo = new GameSettingsRepository();
     }
 
     /**
@@ -54,6 +57,12 @@ class AuthService {
 
             if (!password_verify($userRequest->password, $user->password)) {
                 throw new Exception("Ongeldig wachtwoord.", 401);
+            }
+
+            // SECURITY: Block normal users if game is not active!
+            $settings = $this->settingsRepo->getSettings();
+            if ($settings->state === 'SETUP' && $user->role !== 'admin') {
+                throw new Exception("De game is momenteel in configuratie modus. Wacht op de spelleiding.", 403);
             }
 
             return $user;

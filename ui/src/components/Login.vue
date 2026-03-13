@@ -36,6 +36,8 @@ const router = useRouter();
 
 const reloadCompanies = inject('reloadCompanies');
 const checkPendingOffers = inject('checkPendingOffers');
+const refreshGameState = inject('refreshGameState');
+const gameState = inject('gameState');
 const { login } = useAuth();
 
 const handleLogin = async () => {
@@ -52,24 +54,31 @@ const handleLogin = async () => {
             // 1. Save Token & User Object via Composable
             login(response.user, response.token);
 
-            // 2. Fetch Data immediately (updates cash in header)
-            if (reloadCompanies) {
-                await reloadCompanies();
+            // 2. Fetch Global State to know where to route them
+            if (refreshGameState) {
+                await refreshGameState();
             }
 
-            // 3. Fetch Pending Offers immediately to pop the notification badge instantly
-            if (checkPendingOffers) {
-                await checkPendingOffers();
-            }
-
-            // 4. Redirect based on Role
+            // 3. Routing Logic
             if (response.user.role === 'admin') {
-                router.push('/'); // Admin goes to Rules/Home
+                if (gameState.value === 'SETUP') {
+                    router.push('/setup'); // Admin needs to setup the game
+                } else {
+                    router.push('/');      // Game is active
+                }
             } else {
-                router.push('/transacties'); // Companies go to their history
+                // Regular users go to history
+                router.push('/transacties');
             }
+
+            // Fetch Data immediately if game is active
+            if (gameState.value === 'ACTIVE') {
+                if (reloadCompanies) await reloadCompanies();
+                if (checkPendingOffers) await checkPendingOffers();
+            }
+
         } else {
-            error.value = "Login failed: No token received";
+            error.value = "Login mislukt: Geen token ontvangen";
         }
     } catch (e) {
         error.value = e.message;

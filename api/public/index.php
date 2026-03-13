@@ -27,9 +27,16 @@ $auth = new AuthService();
 $router->post('/login', 'Controllers\AuthController@login');
 $router->get('/ping', 'Controllers\Controller@register');
 $router->get('/diagnostics', 'Controllers\Controller@diagnostics');
+$router->get('/api/game/settings', 'Controllers\GameController@getSettings');
 
 // --- Protected Routes ---
 $router->before('GET|POST|PUT|DELETE', '/api/.*', function() use ($auth) {
+    // Make an exception for the public game settings route
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (str_contains($uri, '/api/game/settings')) {
+        return;
+    }
+
     // Validates token for all /api/ routes
     $auth->validateToken();
 });
@@ -79,6 +86,11 @@ $router->mount('/api', function() use ($router, $auth) {
         $router->get('/pending', 'Controllers\TradeOfferController@getPending');
         $router->post('/([0-9]+)/accept', 'Controllers\TradeOfferController@accept');
         $router->post('/([0-9]+)/decline', 'Controllers\TradeOfferController@decline');
+    });
+
+    $router->mount('/game', function() use ($router, $auth) {
+        $router->post('/start', 'Controllers\GameController@start');
+        $router->post('/reset', 'Controllers\GameController@reset');
     });
 });
 

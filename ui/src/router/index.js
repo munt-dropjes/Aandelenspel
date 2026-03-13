@@ -6,6 +6,7 @@ import Graph from '../components/Graph.vue';
 import Login from '../components/Login.vue';
 import Transactions from '../components/Transactions.vue';
 import TradeOffers from '../components/TradeOffers.vue';
+import AdminSettings from '../components/AdminSettings.vue';
 
 const routes = [
     { path: '/', component: Rules },
@@ -14,7 +15,8 @@ const routes = [
     { path: '/grafiek', component: Graph },
     { path: '/login', component: Login },
     { path: '/transacties', component: Transactions },
-    { path: '/handelsverzoeken', component: TradeOffers }
+    { path: '/handelsverzoeken', component: TradeOffers },
+    { path: '/setup', component: AdminSettings }
 ];
 
 const router = createRouter({
@@ -23,7 +25,7 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-    const publicPages = ['/login'];
+    const publicPages = ['/login', '/'];
     const authRequired = !publicPages.includes(to.path);
     const loggedIn = localStorage.getItem('authToken');
 
