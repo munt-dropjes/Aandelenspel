@@ -24,7 +24,7 @@
 
                             <li class="nav-item">
                                 <router-link to="/transacties" class="nav-link" active-class="active">
-                                    {{ isAdmin ? 'Admin Overzicht' : 'Mijn Rekening' }}
+                                    {{ isAdmin ? 'Transactie Overzicht' : 'Mijn Rekening' }}
                                 </router-link>
                             </li>
 

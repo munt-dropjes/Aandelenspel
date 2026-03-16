@@ -73,7 +73,12 @@ class TradeOfferService
         }
 
         // 2. JIT Check: Seller Shares
-        $sellerShareAmount = $this->stockRepo->getShareAmount($offer->target_company_id, $sellerId);
+        $seller = $this->companyRepo->findById($offer->seller_id);
+        if (!$seller) {
+            $this->offerRepo->updateStatus($offerId, 'declined');
+            throw new Exception("Verkoper niet gevonden. Bod automatisch afgewezen.", 404);
+        }
+        $sellerShareAmount = $this->stockRepo->getShareAmount($offer->target_company_id, $offer->seller_id);
         if ($sellerShareAmount < $offer->amount) {
             $this->offerRepo->updateStatus($offerId, 'declined');
             throw new Exception("Je hebt niet genoeg aandelen meer om te verkopen. Bod automatisch afgewezen.", 400);
@@ -83,8 +88,8 @@ class TradeOfferService
         $targetName = $targetCompany ? $targetCompany->name : "Onbekend";
 
         // 3. Descriptions for Ledger
-        $buyerDesc = "Aankoop {$offer->amount} aandelen {$targetName} van bedrijf #{$sellerId}";
-        $sellerDesc = "Verkoop {$offer->amount} aandelen {$targetName} aan bedrijf #{$offer->buyer_id}";
+        $buyerDesc = "Aankoop {$offer->amount} aandelen {$targetName} van {$seller->name}";
+        $sellerDesc = "Verkoop {$offer->amount} aandelen {$targetName} aan {$buyer->name}";
 
         // 4. Execute
         $this->offerRepo->executeAcceptOffer($offer, $buyerDesc, $sellerDesc);
