@@ -51,11 +51,15 @@ class TradeOfferService
     /**
      * @throws Exception
      */
-    public function acceptOffer(int $sellerId, int $offerId): void {
+    public function acceptOffer(?int $sellerId, int $offerId, string $role): void {
         $offer = $this->offerRepo->getById($offerId);
 
-        if (!$offer || $offer->seller_id !== $sellerId) {
-            throw new Exception("Bod niet gevonden of niet gemachtigd.", 404);
+        if (!$offer) {
+            throw new Exception("Bod niet gevonden.", 404);
+        }
+
+        if ($role !== 'admin' && $offer->seller_id !== $sellerId) {
+            throw new Exception("Niet gemachtigd om dit bod te accepteren.", 403);
         }
         if ($offer->status !== 'pending') {
             throw new Exception("Dit bod is niet meer in afwachting.", 400);
@@ -89,11 +93,15 @@ class TradeOfferService
     /**
      * @throws Exception
      */
-    public function declineOffer(int $sellerId, int $offerId): void {
+    public function declineOffer(?int $sellerId, int $offerId, string $role): void {
         $offer = $this->offerRepo->getById($offerId);
-        if (!$offer || $offer->seller_id !== $sellerId) {
-            throw new Exception("Bod niet gevonden of niet gemachtigd.", 404);
+        if (!$offer) {
+            throw new Exception("Bod niet gevonden.", 404);
         }
+        if ($role !== 'admin' && $offer->seller_id !== $sellerId) {
+            throw new Exception("Niet gemachtigd om dit bod af te wijzen.", 403);
+        }
+
         $this->offerRepo->updateStatus($offerId, 'declined');
     }
 }

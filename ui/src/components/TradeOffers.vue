@@ -288,7 +288,7 @@ const respondToOffer = async (offerId, action) => {
 
     loading.value = true;
     try {
-        await apiCall(`/api/offers/${offerId}/${action}`, 'POST');
+        await apiCall(`/api/offers/${offerId}/${action}`, 'POST', {});
 
         if (isAccepting && reloadCompanies) {
             await reloadCompanies();

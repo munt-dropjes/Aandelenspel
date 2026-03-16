@@ -71,7 +71,7 @@ class TradeOfferController extends Controller
     {
         try {
             $user = $this->authService->getCurrentUserFromTokenPayload();
-            $this->offerService->acceptOffer($user->company_id, (int)$id);
+            $this->offerService->acceptOffer($user->company_id, (int)$id, $user->role);
             $this->respond(["message" => "Bod succesvol geaccepteerd."]);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
@@ -82,7 +82,7 @@ class TradeOfferController extends Controller
     {
         try {
             $user = $this->authService->getCurrentUserFromTokenPayload();
-            $this->offerService->declineOffer($user->company_id, (int)$id);
+            $this->offerService->declineOffer($user->company_id, (int)$id, $user->role);
             $this->respond(["message" => "Bod afgewezen."]);
         } catch (Exception $e) {
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
