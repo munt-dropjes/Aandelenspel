@@ -61,6 +61,8 @@ $router->mount('/api', function() use ($router, $auth) {
     $router->mount('/tasks', function() use ($router, $auth) {
         $router->get('/', 'Controllers\TaskController@getAll');
         $router->post('/complete', 'Controllers\TaskController@complete');
+        $router->post('/import', 'Controllers\TaskController@import');
+        $router->delete('/all', 'Controllers\TaskController@deleteAll');
     });
 
     $router->mount('/history', function() use ($router, $auth) {

@@ -75,6 +75,30 @@ class TaskService
         return TaskResponse::CreateFromCompletion($company, $task, $reward, true);
     }
 
+    /**
+     * @throws Exception
+     */
+    public function importTasks(array $categories): void {
+        $settingsRepo = new \Repositories\GameSettingsRepository();
+        if ($settingsRepo->getSettings()->state !== 'SETUP') {
+            throw new Exception("Je kunt alleen taken importeren als de game in SETUP modus staat.", 400);
+        }
+
+        $this->taskRepo->importCategoriesAndTasks($categories);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function deleteAllTasks(): void {
+        $settingsRepo = new \Repositories\GameSettingsRepository();
+        if ($settingsRepo->getSettings()->state !== 'SETUP') {
+            throw new Exception("Je kunt alleen taken wissen als de game in SETUP modus staat.", 400);
+        }
+
+        $this->taskRepo->deleteAllCategories();
+    }
+
     private function getRankLabel(int $rank): string {
         $rank ++;
         return $rank . ($rank === 1 ? 'ste' : 'de');

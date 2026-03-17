@@ -122,4 +122,53 @@ class TaskRepository extends Repository
             throw new Exception("Failed to complete task: " . $e->getMessage());
         }
     }
+
+    /**
+     * @throws Exception
+     */
+    public function deleteAllCategories(): void {
+        try {
+            // Because of ON DELETE CASCADE, dropping categories wipes tasks and completions automatically.
+            $this->connection->exec("DELETE FROM task_categories");
+        } catch (Exception $e) {
+            throw new Exception("Kon database niet leegmaken: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function importCategoriesAndTasks(array $categories): void {
+        try {
+            $this->connection->beginTransaction();
+            
+            $this->connection->exec("DELETE FROM task_categories");
+
+            $stmtCat = $this->connection->prepare("INSERT INTO task_categories (label, reward_p1, reward_p2, reward_p3, reward_p4, reward_p5, penalty) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmtTask = $this->connection->prepare("INSERT INTO tasks (category_id, name) VALUES (?, ?)");
+
+            foreach ($categories as $cat) {
+                $stmtCat->execute([
+                    $cat['name'],
+                    $cat['reward_p1'],
+                    $cat['reward_p2'],
+                    $cat['reward_p3'],
+                    $cat['reward_p4'],
+                    $cat['reward_p5'],
+                    $cat['penalty']
+                ]);
+                
+                $categoryId = $this->connection->lastInsertId();
+
+                foreach ($cat['tasks'] as $taskName) {
+                    $stmtTask->execute([$categoryId, $taskName]);
+                }
+            }
+
+            $this->connection->commit();
+        } catch (Exception $e) {
+            if ($this->connection->inTransaction()) $this->connection->rollBack();
+            throw new Exception("Import database fout: " . $e->getMessage());
+        }
+    }
 }
