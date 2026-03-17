@@ -285,15 +285,34 @@ const loadCurrentTasks = async () => {
 // --- CSV IMPORTER LOGIC ---
 
 const downloadTemplate = () => {
-    const headers = "Categorie;Opdracht;Prijs_1e;Prijs_2e;Prijs_3e;Prijs_4e;Prijs_5e;Boete\n";
-    const example1 = "1e Klasse;Oogsplits;100000;50000;20000;-50000;-100000;-100000\n";
-    const example2 = "1e Klasse;Turkse Knoop;100000;50000;20000;-50000;-100000;-100000\n";
-    const example3 = "Vragen;Oprichtingsjaar;5000;2500;1000;-2500;-5000;-5000\n";
-    
-    const csvContent = "data:text/csv;charset=utf-8," + headers + example1 + example2 + example3;
-    const encodedUri = encodeURI(csvContent);
+    // We gebruiken nu de overzichtelijke, gegroepeerde layout!
+    const csvData = 
+`sep=;
+Categorie;Opdracht;Prijs_1e;Prijs_2e;Prijs_3e;Prijs_4e;Prijs_5e;Boete
+3e Klasse;;25000;12500;5000;-12500;-25000;-25000
+;Kruissjorring;;;;;;
+;8-vormige sjorring;;;;;;
+;Blokkenstel inscheren;;;;;;
+2e Klasse;;50000;25000;10000;-25000;-50000;-50000
+;Dubbele werpanker;;;;;;
+;Diagonaalssjorring;;;;;;
+;Vorkssjorring;;;;;;
+1e Klasse;;100000;50000;20000;-50000;-100000;-100000
+;Oogsplits;;;;;;
+;Eindsplits;;;;;;
+;Tussensplits;;;;;;
+Algemeen/Overige;;50000;25000;10000;-25000;-50000;-50000
+;Kaartenhuis 6 verdiepingen;;;;;;
+;Kruiwagen hout halen;;;;;;
+;Koffie aan de staf;;;;;;
+Vragen;;5000;2500;1000;-2500;-5000;-5000
+;Naam Groep 3 (1911);;;;;;
+;Hopman Grijze Driehoek;;;;;;
+;Oprichting Camerons;;;;;;`;
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csvData);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", csvContent);
     link.setAttribute("download", "Aandelenspel_Opdrachten_Template.csv");
     document.body.appendChild(link);
     link.click();
@@ -316,7 +335,8 @@ const handleFileUpload = (event) => {
     reader.onload = (e) => {
         try {
             const text = e.target.result;
-            const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+            // Filter lege regels EN de 'sep=;' regel eruit
+            const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0 && !line.startsWith('sep='));
             
             const headerLine = lines[0];
             let delimiter = ';';
@@ -324,33 +344,56 @@ const handleFileUpload = (event) => {
                 delimiter = ',';
             }
             
-            lines.shift(); 
+            lines.shift();
             
             const categoryMap = {};
+            let currentCategoryName = '';
 
             lines.forEach((line) => {
                 const cols = line.split(delimiter);
-                if (cols.length < 2) return; 
+                
+                const colCat = cols[0] ? cols[0].trim() : '';
+                const colTask = cols[1] ? cols[1].trim() : '';
 
-                const catName = cols[0] ? cols[0].trim() : '';
-                const taskName = cols[1] ? cols[1].trim() : '';
+                if (!colCat && !colTask) return;
 
-                if (!catName || !taskName) return;
+                if (colCat !== '') {
+                    currentCategoryName = colCat;
 
-                if (!categoryMap[catName]) {
-                    categoryMap[catName] = {
-                        name: catName,
-                        reward_p1: parseInt(cols[2]) || 0,
-                        reward_p2: parseInt(cols[3]) || 0,
-                        reward_p3: parseInt(cols[4]) || 0,
-                        reward_p4: parseInt(cols[5]) || 0,
-                        reward_p5: parseInt(cols[6]) || 0,
-                        penalty: parseInt(cols[7]) || 0,
-                        tasks: [],
-                        expanded: false // UI Helper
-                    };
+                    const hasPrices = !isNaN(parseInt(cols[2]));
+
+                    if (!categoryMap[currentCategoryName]) {
+                        categoryMap[currentCategoryName] = {
+                            name: currentCategoryName,
+                            reward_p1: parseInt(cols[2]) || 0,
+                            reward_p2: parseInt(cols[3]) || 0,
+                            reward_p3: parseInt(cols[4]) || 0,
+                            reward_p4: parseInt(cols[5]) || 0,
+                            reward_p5: parseInt(cols[6]) || 0,
+                            penalty: parseInt(cols[7]) || 0,
+                            tasks: [],
+                            expanded: false
+                        };
+                    } else if (hasPrices) {
+                        categoryMap[currentCategoryName].reward_p1 = parseInt(cols[2]) || 0;
+                        categoryMap[currentCategoryName].reward_p2 = parseInt(cols[3]) || 0;
+                        categoryMap[currentCategoryName].reward_p3 = parseInt(cols[4]) || 0;
+                        categoryMap[currentCategoryName].reward_p4 = parseInt(cols[5]) || 0;
+                        categoryMap[currentCategoryName].reward_p5 = parseInt(cols[6]) || 0;
+                        categoryMap[currentCategoryName].penalty = parseInt(cols[7]) || 0;
+                    }
                 }
-                categoryMap[catName].tasks.push(taskName);
+
+                if (colTask !== '') {
+                    // Fallback voor als iemand vergeet bovenaan een Categorie aan te maken
+                    if (!currentCategoryName) {
+                        currentCategoryName = 'Overig';
+                        if (!categoryMap[currentCategoryName]) {
+                            categoryMap[currentCategoryName] = { name: 'Overig', reward_p1: 0, reward_p2: 0, reward_p3: 0, reward_p4: 0, reward_p5: 0, penalty: 0, tasks: [], expanded: false };
+                        }
+                    }
+                    categoryMap[currentCategoryName].tasks.push(colTask);
+                }
             });
 
             parsedCategories.value = Object.values(categoryMap);
