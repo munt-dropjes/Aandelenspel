@@ -226,26 +226,52 @@ const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // --- NIEUWE VEILIGHEIDSCHECK ---
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        taskFeedbackType.value = 'error';
+        taskFeedback.value = "Oeps! Je hebt een echt Excel bestand (.xlsx) geselecteerd. Sla het bestand in Excel eerst op als CSV (Opslaan als > CSV) en upload die versie.";
+        
+        // Reset file input
+        event.target.value = '';
+        return;
+    }
+    // -------------------------------
+
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const text = e.target.result;
+            // Split by newlines and remove completely empty lines
             const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
             
+            // Auto-detect the delimiter by checking the header row
+            const headerLine = lines[0];
+            let delimiter = ';';
+            if (headerLine.includes(',') && !headerLine.includes(';')) {
+                delimiter = ',';
+            }
+            
+            // Skip header row
             lines.shift(); 
             
             const categoryMap = {};
 
-            lines.forEach((line, index) => {
-                const cols = line.split(';');
-                if (cols.length < 8) return; 
+            lines.forEach((line) => {
+                // Split by the auto-detected delimiter
+                const cols = line.split(delimiter);
+                
+                // Be forgiving: As long as we have a Category and a Task Name, we can parse it
+                if (cols.length < 2) return; 
 
-                const catName = cols[0].trim();
-                const taskName = cols[1].trim();
+                const catName = cols[0] ? cols[0].trim() : '';
+                const taskName = cols[1] ? cols[1].trim() : '';
+
+                if (!catName || !taskName) return;
 
                 if (!categoryMap[catName]) {
                     categoryMap[catName] = {
                         name: catName,
+                        // Use parseInt but fallback to 0 if the column is empty or missing
                         reward_p1: parseInt(cols[2]) || 0,
                         reward_p2: parseInt(cols[3]) || 0,
                         reward_p3: parseInt(cols[4]) || 0,
@@ -262,7 +288,7 @@ const handleFileUpload = (event) => {
             
             if(parsedCategories.value.length === 0) {
                  taskFeedbackType.value = 'error';
-                 taskFeedback.value = "Geen geldige rijen gevonden in de CSV. Let op dat je een puntkomma (;) gebruikt.";
+                 taskFeedback.value = "Geen geldige rijen gevonden. Controleer of het bestand tekst bevat en goed is opgeslagen.";
             }
         } catch (err) {
             taskFeedbackType.value = 'error';
