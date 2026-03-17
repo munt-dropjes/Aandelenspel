@@ -110,20 +110,60 @@
                     </div>
                     <div class="card-body">
                         
+                        <div class="mb-4 border-bottom pb-3">
+                            <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-server me-2"></i>Huidige Database Status</h6>
+                            
+                            <div v-if="currentCategories.length > 0" class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-start">Categorie</th>
+                                            <th># Taken</th>
+                                            <th>1e Prijs</th>
+                                            <th class="text-danger">Boete</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template v-for="(cat, i) in currentCategories" :key="'curr'+i">
+                                            <tr @click="cat.expanded = !cat.expanded" style="cursor: pointer;" class="table-hover">
+                                                <td class="text-start fw-bold text-primary user-select-none">
+                                                    <i :class="cat.expanded ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i> {{ cat.name }}
+                                                </td>
+                                                <td><span class="badge bg-secondary">{{ cat.tasks.length }}</span></td>
+                                                <td class="text-success">ƒ {{ Number(cat.reward_p1).toLocaleString() }}</td>
+                                                <td class="text-danger fw-bold">ƒ {{ Number(cat.penalty).toLocaleString() }}</td>
+                                            </tr>
+                                            <tr v-if="cat.expanded" class="bg-light">
+                                                <td colspan="4" class="text-start small p-3">
+                                                    <ul class="mb-0 text-muted" style="column-count: 2; column-gap: 20px;">
+                                                        <li v-for="(taskName, idx) in cat.tasks" :key="idx">{{ taskName }}</li>
+                                                    </ul>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div v-else class="alert alert-secondary py-2 text-center fst-italic mb-0">
+                                Er staan momenteel geen opdrachten in de database. Upload een CSV bestand om te beginnen.
+                            </div>
+                        </div>
+
                         <div class="row align-items-center mb-3">
                             <div class="col-md-8">
-                                <label class="form-label fw-bold">Upload een ingevuld CSV bestand (gescheiden door puntkomma ';')</label>
+                                <label class="form-label fw-bold">Upload een ingevuld CSV bestand (.csv)</label>
                                 <input type="file" class="form-control border-success" accept=".csv" @change="handleFileUpload" :disabled="loading">
                             </div>
-                            <div class="col-md-4 text-end mt-4 mt-md-0">
+                            
+                            <div class="col-md-4 text-end mt-4 mt-md-0" v-if="currentCategories.length > 0">
                                 <button @click="clearTasks" class="btn btn-outline-danger fw-bold" :disabled="loading">
                                     <i class="bi bi-trash-fill me-1"></i> Wis Huidige Opdrachten
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="parsedCategories.length > 0" class="alert alert-light border shadow-sm">
-                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-eye-fill me-2"></i>Preview: Klaar om te importeren</h6>
+                        <div v-if="parsedCategories.length > 0" class="alert alert-light border shadow-sm mt-4">
+                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-eye-fill me-2"></i>Preview: Klik op een categorie om de opdrachten te zien</h6>
                             
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle text-center">
@@ -136,17 +176,28 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="(cat, i) in parsedCategories" :key="i">
-                                            <td class="text-start fw-bold">{{ cat.name }}</td>
-                                            <td><span class="badge bg-secondary">{{ cat.tasks.length }}</span></td>
-                                            <td class="text-success">ƒ {{ Number(cat.reward_p1).toLocaleString() }}</td>
-                                            <td class="text-danger fw-bold">ƒ {{ Number(cat.penalty).toLocaleString() }}</td>
-                                        </tr>
+                                        <template v-for="(cat, i) in parsedCategories" :key="'prev'+i">
+                                            <tr @click="cat.expanded = !cat.expanded" style="cursor: pointer;" class="table-hover">
+                                                <td class="text-start fw-bold text-primary user-select-none">
+                                                    <i :class="cat.expanded ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i> {{ cat.name }}
+                                                </td>
+                                                <td><span class="badge bg-secondary">{{ cat.tasks.length }}</span></td>
+                                                <td class="text-success">ƒ {{ Number(cat.reward_p1).toLocaleString() }}</td>
+                                                <td class="text-danger fw-bold">ƒ {{ Number(cat.penalty).toLocaleString() }}</td>
+                                            </tr>
+                                            <tr v-if="cat.expanded" class="bg-light">
+                                                <td colspan="4" class="text-start small p-3">
+                                                    <ul class="mb-0 text-muted" style="column-count: 2; column-gap: 20px;">
+                                                        <li v-for="(taskName, idx) in cat.tasks" :key="idx">{{ taskName }}</li>
+                                                    </ul>
+                                                </td>
+                                            </tr>
+                                        </template>
                                     </tbody>
                                 </table>
                             </div>
 
-                            <button @click="importTasks" class="btn btn-success w-100 fw-bold shadow-sm" :disabled="loading">
+                            <button @click="importTasks" class="btn btn-success w-100 fw-bold shadow-sm mt-2" :disabled="loading">
                                 <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                                 Importeren & Opslaan (Oude taken worden overschreven)
                             </button>
@@ -180,6 +231,7 @@ const { isAdmin } = useAuth();
 const loading = ref(false);
 const error = ref('');
 const credentials = ref([]);
+const currentCategories = ref([]);
 const parsedCategories = ref([]);
 const taskFeedback = ref('');
 const taskFeedbackType = ref('');
@@ -202,6 +254,33 @@ const form = ref({
         { name: 'Valken', color: '#fd7e14' }
     ]
 });
+
+// --- TASK FETCHING LOGIC ---
+const loadCurrentTasks = async () => {
+    try {
+        const data = await apiCall('/api/tasks');
+        if (data && data.length > 0) {
+            const categoryMap = {};
+            data.forEach(t => {
+                if (!categoryMap[t.category]) {
+                    categoryMap[t.category] = {
+                        name: t.category,
+                        reward_p1: t.reward_p1,
+                        penalty: t.penalty,
+                        tasks: [],
+                        expanded: false // UI Helper
+                    };
+                }
+                categoryMap[t.category].tasks.push(t.name);
+            });
+            currentCategories.value = Object.values(categoryMap);
+        } else {
+            currentCategories.value = [];
+        }
+    } catch (e) {
+        console.error("Kon huidige taken niet laden", e);
+    }
+};
 
 // --- CSV IMPORTER LOGIC ---
 
@@ -226,41 +305,31 @@ const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // --- NIEUWE VEILIGHEIDSCHECK ---
     if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         taskFeedbackType.value = 'error';
-        taskFeedback.value = "Oeps! Je hebt een echt Excel bestand (.xlsx) geselecteerd. Sla het bestand in Excel eerst op als CSV (Opslaan als > CSV) en upload die versie.";
-        
-        // Reset file input
+        taskFeedback.value = "Oeps! Je hebt een Excel bestand (.xlsx) geselecteerd. Sla het bestand in Excel eerst op als CSV (Opslaan als > CSV) en upload die versie.";
         event.target.value = '';
         return;
     }
-    // -------------------------------
 
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const text = e.target.result;
-            // Split by newlines and remove completely empty lines
             const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
             
-            // Auto-detect the delimiter by checking the header row
             const headerLine = lines[0];
             let delimiter = ';';
             if (headerLine.includes(',') && !headerLine.includes(';')) {
                 delimiter = ',';
             }
             
-            // Skip header row
             lines.shift(); 
             
             const categoryMap = {};
 
             lines.forEach((line) => {
-                // Split by the auto-detected delimiter
                 const cols = line.split(delimiter);
-                
-                // Be forgiving: As long as we have a Category and a Task Name, we can parse it
                 if (cols.length < 2) return; 
 
                 const catName = cols[0] ? cols[0].trim() : '';
@@ -271,14 +340,14 @@ const handleFileUpload = (event) => {
                 if (!categoryMap[catName]) {
                     categoryMap[catName] = {
                         name: catName,
-                        // Use parseInt but fallback to 0 if the column is empty or missing
                         reward_p1: parseInt(cols[2]) || 0,
                         reward_p2: parseInt(cols[3]) || 0,
                         reward_p3: parseInt(cols[4]) || 0,
                         reward_p4: parseInt(cols[5]) || 0,
                         reward_p5: parseInt(cols[6]) || 0,
                         penalty: parseInt(cols[7]) || 0,
-                        tasks: []
+                        tasks: [],
+                        expanded: false // UI Helper
                     };
                 }
                 categoryMap[catName].tasks.push(taskName);
@@ -288,7 +357,7 @@ const handleFileUpload = (event) => {
             
             if(parsedCategories.value.length === 0) {
                  taskFeedbackType.value = 'error';
-                 taskFeedback.value = "Geen geldige rijen gevonden. Controleer of het bestand tekst bevat en goed is opgeslagen.";
+                 taskFeedback.value = "Geen geldige rijen gevonden. Controleer of het bestand correct is opgeslagen.";
             }
         } catch (err) {
             taskFeedbackType.value = 'error';
@@ -308,8 +377,9 @@ const importTasks = async () => {
         taskFeedbackType.value = 'success';
         taskFeedback.value = "Opdrachten succesvol geïmporteerd in de database!";
         parsedCategories.value = []; 
-        
         document.querySelector('input[type="file"]').value = '';
+        
+        await loadCurrentTasks();
     } catch (e) {
         taskFeedbackType.value = 'error';
         taskFeedback.value = e.message;
@@ -319,13 +389,15 @@ const importTasks = async () => {
 };
 
 const clearTasks = async () => {
-    if (!confirm("Weet je zeker dat je ALLE bestaande opdrachten uit het systeem wilt wissen?")) return;
+    if (!confirm("Weet je zeker dat je ALLE bestaande opdrachten uit het systeem wilt wissen? Dit kan niet ongedaan worden gemaakt!")) return;
     loading.value = true;
     taskFeedback.value = '';
     try {
         await apiCall('/api/tasks/all', 'DELETE');
         taskFeedbackType.value = 'success';
         taskFeedback.value = "Alle opdrachten zijn permanent gewist uit de database.";
+        
+        await loadCurrentTasks();
     } catch (e) {
         taskFeedbackType.value = 'error';
         taskFeedback.value = e.message;
@@ -372,6 +444,8 @@ onMounted(async () => {
     } catch (e) {
         console.error("Kon settings niet laden", e);
     }
+    
+    await loadCurrentTasks();
 });
 
 const addCompany = () => {
@@ -406,3 +480,9 @@ const startGame = async () => {
 
 const refreshPage = () => { window.location.href = '/'; };
 </script>
+
+<style scoped>
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.025);
+}
+</style>
