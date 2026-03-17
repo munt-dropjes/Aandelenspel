@@ -99,6 +99,66 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="col-12 mb-4">
+                <div class="card shadow-sm border-success">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-excel-fill me-2"></i>Opdrachten (CSV / Excel Import)</h5>
+                        <button @click="downloadTemplate" class="btn btn-sm btn-light text-success fw-bold">
+                            <i class="bi bi-download me-1"></i> Download Template
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        
+                        <div class="row align-items-center mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Upload een ingevuld CSV bestand (gescheiden door puntkomma ';')</label>
+                                <input type="file" class="form-control border-success" accept=".csv" @change="handleFileUpload" :disabled="loading">
+                            </div>
+                            <div class="col-md-4 text-end mt-4 mt-md-0">
+                                <button @click="clearTasks" class="btn btn-outline-danger fw-bold" :disabled="loading">
+                                    <i class="bi bi-trash-fill me-1"></i> Wis Huidige Opdrachten
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="parsedCategories.length > 0" class="alert alert-light border shadow-sm">
+                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-eye-fill me-2"></i>Preview: Klaar om te importeren</h6>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle text-center">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th class="text-start">Categorie</th>
+                                            <th># Taken</th>
+                                            <th>1e Prijs</th>
+                                            <th class="text-danger">Boete</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(cat, i) in parsedCategories" :key="i">
+                                            <td class="text-start fw-bold">{{ cat.name }}</td>
+                                            <td><span class="badge bg-secondary">{{ cat.tasks.length }}</span></td>
+                                            <td class="text-success">ƒ {{ Number(cat.reward_p1).toLocaleString() }}</td>
+                                            <td class="text-danger fw-bold">ƒ {{ Number(cat.penalty).toLocaleString() }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <button @click="importTasks" class="btn btn-success w-100 fw-bold shadow-sm" :disabled="loading">
+                                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                                Importeren & Opslaan (Oude taken worden overschreven)
+                            </button>
+                        </div>
+                        
+                        <div v-if="taskFeedback" :class="['alert mt-3 mb-0', taskFeedbackType === 'error' ? 'alert-danger' : 'alert-success']">
+                            {{ taskFeedback }}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
 
             <div class="col-12 mt-3">
                 <div v-if="error" class="alert alert-danger">{{ error }}</div>
@@ -120,6 +180,9 @@ const { isAdmin } = useAuth();
 const loading = ref(false);
 const error = ref('');
 const credentials = ref([]);
+const parsedCategories = ref([]);
+const taskFeedback = ref('');
+const taskFeedbackType = ref('');
 
 const form = ref({
     starting_cash: 100000,
@@ -139,6 +202,113 @@ const form = ref({
         { name: 'Valken', color: '#fd7e14' }
     ]
 });
+
+// --- CSV IMPORTER LOGIC ---
+
+const downloadTemplate = () => {
+    const headers = "Categorie;Opdracht;Prijs_1e;Prijs_2e;Prijs_3e;Prijs_4e;Prijs_5e;Boete\n";
+    const example1 = "1e Klasse;Oogsplits;100000;50000;20000;-50000;-100000;-100000\n";
+    const example2 = "1e Klasse;Turkse Knoop;100000;50000;20000;-50000;-100000;-100000\n";
+    const example3 = "Vragen;Oprichtingsjaar;5000;2500;1000;-2500;-5000;-5000\n";
+    
+    const csvContent = "data:text/csv;charset=utf-8," + headers + example1 + example2 + example3;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Aandelenspel_Opdrachten_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const handleFileUpload = (event) => {
+    taskFeedback.value = '';
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const text = e.target.result;
+            const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+            
+            lines.shift(); 
+            
+            const categoryMap = {};
+
+            lines.forEach((line, index) => {
+                const cols = line.split(';');
+                if (cols.length < 8) return; 
+
+                const catName = cols[0].trim();
+                const taskName = cols[1].trim();
+
+                if (!categoryMap[catName]) {
+                    categoryMap[catName] = {
+                        name: catName,
+                        reward_p1: parseInt(cols[2]) || 0,
+                        reward_p2: parseInt(cols[3]) || 0,
+                        reward_p3: parseInt(cols[4]) || 0,
+                        reward_p4: parseInt(cols[5]) || 0,
+                        reward_p5: parseInt(cols[6]) || 0,
+                        penalty: parseInt(cols[7]) || 0,
+                        tasks: []
+                    };
+                }
+                categoryMap[catName].tasks.push(taskName);
+            });
+
+            parsedCategories.value = Object.values(categoryMap);
+            
+            if(parsedCategories.value.length === 0) {
+                 taskFeedbackType.value = 'error';
+                 taskFeedback.value = "Geen geldige rijen gevonden in de CSV. Let op dat je een puntkomma (;) gebruikt.";
+            }
+        } catch (err) {
+            taskFeedbackType.value = 'error';
+            taskFeedback.value = "Fout bij het uitlezen van het bestand.";
+        }
+    };
+    reader.readAsText(file);
+};
+
+const importTasks = async () => {
+    if (parsedCategories.value.length === 0) return;
+    loading.value = true;
+    taskFeedback.value = '';
+
+    try {
+        await apiCall('/api/tasks/import', 'POST', { categories: parsedCategories.value });
+        taskFeedbackType.value = 'success';
+        taskFeedback.value = "Opdrachten succesvol geïmporteerd in de database!";
+        parsedCategories.value = []; 
+        
+        document.querySelector('input[type="file"]').value = '';
+    } catch (e) {
+        taskFeedbackType.value = 'error';
+        taskFeedback.value = e.message;
+    } finally {
+        loading.value = false;
+    }
+};
+
+const clearTasks = async () => {
+    if (!confirm("Weet je zeker dat je ALLE bestaande opdrachten uit het systeem wilt wissen?")) return;
+    loading.value = true;
+    taskFeedback.value = '';
+    try {
+        await apiCall('/api/tasks/all', 'DELETE');
+        taskFeedbackType.value = 'success';
+        taskFeedback.value = "Alle opdrachten zijn permanent gewist uit de database.";
+    } catch (e) {
+        taskFeedbackType.value = 'error';
+        taskFeedback.value = e.message;
+    } finally {
+        loading.value = false;
+    }
+};
+
+// --- GAME LOGIC & HELPERS ---
 
 const difficultyDescription = computed(() => {
     switch(Number(form.value.ai_difficulty)) {
@@ -178,32 +348,29 @@ onMounted(async () => {
     }
 });
 
-const addCompany = () => form.value.companies.push({ name: '', color: '#000000' });
+const addCompany = () => {
+    if (form.value.companies.length === 0) form.value.companies.push({ name: 'Haviken', color: '#ff69b4' });
+    else if (form.value.companies.length === 1) form.value.companies.push({ name: 'Spechten', color: '#198754' });
+    else if (form.value.companies.length === 2) form.value.companies.push({ name: 'Sperwers', color: '#ffc107' });
+    else if (form.value.companies.length === 3) form.value.companies.push({ name: 'Zwaluwen', color: '#0d6efd' });
+    else if (form.value.companies.length === 4) form.value.companies.push({ name: 'Valken', color: '#fd7e14' });
+    else form.value.companies.push({ name: 'Patrouille naam', color: '#000000' });
+};
 const removeCompany = (index) => form.value.companies.splice(index, 1);
 
-// DYNAMIC DEFAULT NPC LOGIC
 const addNpc = () => {
-    if (form.value.npcs.length === 0) {
-        form.value.npcs.push({ name: 'De Staf', color: '#E53935' });
-    } else {
-        form.value.npcs.push({ name: 'Nieuwe NPC', color: '#343a40' });
-    }
+    if (form.value.npcs.length === 0) form.value.npcs.push({ name: 'De Staf', color: '#E53935' });
+    else form.value.npcs.push({ name: 'Nieuwe NPC', color: '#343a40' });
 };
-
 const removeNpc = (index) => form.value.npcs.splice(index, 1);
 
 const startGame = async () => {
     loading.value = true;
     error.value = '';
     try {
-        const payload = {
-            ...form.value,
-            ai_enabled: form.value.npcs.length > 0 ? 1 : 0
-        };
-
+        const payload = { ...form.value, ai_enabled: form.value.npcs.length > 0 ? 1 : 0 };
         const response = await apiCall('/api/game/start', 'POST', payload);
         credentials.value = response.credentials;
-
     } catch (e) {
         error.value = e.message;
     } finally {
@@ -211,7 +378,5 @@ const startGame = async () => {
     }
 };
 
-const refreshPage = () => {
-    window.location.href = '/';
-};
+const refreshPage = () => { window.location.href = '/'; };
 </script>

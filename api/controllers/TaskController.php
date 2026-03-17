@@ -44,4 +44,36 @@ class TaskController extends Controller
             $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
         }
     }
+
+    public function import() {
+        try {
+            $user = $this->authService->getCurrentUserFromTokenPayload();
+            if ($user->role !== 'admin') throw new Exception("Onbevoegd.", 403);
+
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+
+            if (!isset($data['categories']) || !is_array($data['categories'])) {
+                $this->respondWithError(400, "Ongeldig dataformaat. Categorieën ontbreken.");
+                return;
+            }
+
+            $this->taskService->importTasks($data['categories']);
+            $this->respond(["message" => "Opdrachten succesvol geïmporteerd!"]);
+        } catch (Exception $e) {
+            $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
+        }
+    }
+
+    public function deleteAll() {
+        try {
+            $user = $this->authService->getCurrentUserFromTokenPayload();
+            if ($user->role !== 'admin') throw new Exception("Onbevoegd.", 403);
+
+            $this->taskService->deleteAllTasks();
+            $this->respond(["message" => "Alle opdrachten zijn gewist."]);
+        } catch (Exception $e) {
+            $this->respondWithError($e->getCode() ?: 500, $e->getMessage());
+        }
+    }
 }
