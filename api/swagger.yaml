@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Stock Market Game API
   description: Backend API for Companies, Stocks, Tasks & Trading.
-  version: 1.4.0
+  version: 1.5.0
 servers:
   - url: http://localhost
     description: Local Development Server
@@ -111,6 +111,8 @@ components:
           type: integer
         stock_price:
           type: integer
+        is_npc:
+          type: boolean
         created_at:
           type: string
           format: date-time
@@ -135,6 +137,8 @@ components:
           type: integer
         reward_p5:
           type: integer
+        penalty:
+          type: integer
         finished_by:
           type: array
           items:
@@ -149,17 +153,32 @@ components:
                 format: date-time
               rank:
                 type: integer
+        failed_by:
+          type: array
+          items:
+            type: object
+            properties:
+              company_id:
+                type: integer
+              company_name:
+                type: string
+              completed_at:
+                type: string
+                format: date-time
 
     TaskCompleteRequest:
       type: object
       required:
         - company_id
         - task_id
+        - success
       properties:
         company_id:
           type: integer
         task_id:
           type: integer
+        success:
+          type: boolean
 
     TaskResponse:
       type: object
@@ -174,9 +193,43 @@ components:
           type: string
         reward:
           type: integer
+        success:
+          type: boolean
         completed_at:
           type: string
           format: date-time
+
+    TaskImportCategory:
+      type: object
+      properties:
+        name:
+          type: string
+        reward_p1:
+          type: integer
+        reward_p2:
+          type: integer
+        reward_p3:
+          type: integer
+        reward_p4:
+          type: integer
+        reward_p5:
+          type: integer
+        penalty:
+          type: integer
+        tasks:
+          type: array
+          items:
+            type: string
+
+    TaskImportRequest:
+      type: object
+      required:
+        - categories
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskImportCategory'
 
     # --- Transaction DTOs ---
     TransactionCreateRequest:
@@ -191,6 +244,23 @@ components:
         amount:
           type: integer
           description: Can be negative for costs.
+        description:
+          type: string
+
+    TransactionTransferRequest:
+      type: object
+      required:
+        - sender_id
+        - receiver_id
+        - amount
+        - description
+      properties:
+        sender_id:
+          type: integer
+        receiver_id:
+          type: integer
+        amount:
+          type: integer
         description:
           type: string
 
@@ -246,6 +316,27 @@ components:
         amount:
           type: integer
 
+    TradeOfferRequest:
+      type: object
+      required:
+        - seller_id
+        - target_company_id
+        - amount
+        - total_price
+      properties:
+        buyer_id:
+          type: integer
+          nullable: true
+          description: Only required if Admin is making an offer on behalf of a company
+        seller_id:
+          type: integer
+        target_company_id:
+          type: integer
+        amount:
+          type: integer
+        total_price:
+          type: integer
+
     # --- Shared Errors ---
     ErrorResponse:
       type: object
@@ -291,7 +382,35 @@ paths:
         200:
           description: Server info
 
+  /api/game/settings:
+    get:
+      summary: Get Game Settings (Public)
+      tags: [Game]
+      responses:
+        200:
+          description: OK
+
   # --- Protected Routes ---
+  /api/game/start:
+    post:
+      summary: Start the Game & generate credentials (Admin only)
+      tags: [Game]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Game started successfully
+
+  /api/game/reset:
+    post:
+      summary: Wipe game and return to SETUP state (Admin only)
+      tags: [Game]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Game reset
+
   /api/companies:
     get:
       summary: Get all companies (with live valuations)
@@ -314,21 +433,6 @@ paths:
       tags: [Companies]
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: integer
-          required: true
-      responses:
-        200:
-          description: Company details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CompanyResponse'
-        404:
-          description: Company not found
 
   /api/tasks:
     get:
@@ -367,6 +471,34 @@ paths:
                 $ref: '#/components/schemas/TaskResponse'
         400:
           description: Task already completed or validation error
+
+  /api/tasks/import:
+    post:
+      summary: Bulk Import Tasks via JSON (Admin only, SETUP mode only)
+      tags: [Tasks]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskImportRequest'
+      responses:
+        200:
+          description: Tasks imported successfully
+        400:
+          description: Not in SETUP mode or invalid payload
+
+  /api/tasks/all:
+    delete:
+      summary: Delete all Tasks & Categories (Admin only, SETUP mode only)
+      tags: [Tasks]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Tasks wiped
 
   /api/transactions:
     get:
@@ -407,11 +539,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TransactionCreateRequest'
-      responses:
-        200:
-          description: Transaction processed
-        400:
-          description: Invalid amount or company
+
+  /api/transactions/transfer:
+    post:
+      summary: Transfer money between companies
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionTransferRequest'
 
   /api/stocks:
     get:
@@ -434,14 +574,6 @@ paths:
       tags: [Stocks]
       security:
         - bearerAuth: []
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Stock'
 
   /api/stocks/company/{companyId}:
     get:
@@ -449,20 +581,6 @@ paths:
       tags: [Stocks]
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: companyId
-          required: true
-          schema:
-            type: integer
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Stock'
 
   /api/stocks/trade:
     post:
@@ -482,24 +600,46 @@ paths:
         400:
           description: Insufficient funds or stock
 
+  /api/offers:
+    post:
+      summary: Create a Trade Offer
+      tags: [Trade Offers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TradeOfferRequest'
+
+  /api/offers/pending:
+    get:
+      summary: Get pending Trade Offers for authenticated user (or all if admin)
+      tags: [Trade Offers]
+      security:
+        - bearerAuth: []
+
+  /api/offers/{id}/accept:
+    post:
+      summary: Accept a pending Trade Offer
+      tags: [Trade Offers]
+      security:
+        - bearerAuth: []
+
+  /api/offers/{id}/decline:
+    post:
+      summary: Decline a pending Trade Offer
+      tags: [Trade Offers]
+      security:
+        - bearerAuth: []
+
   /api/history/save:
     post:
       summary: Trigger a manual snapshot of economy history
       tags: [History]
       security:
         - bearerAuth: []
-      responses:
-        200:
-          description: Snapshot saved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  message:
-                    type: string
 
   /api/history/{dateTime}:
     get:
@@ -515,125 +655,3 @@ paths:
             type: string
             format: date-time
           description: URL Encoded date string (Y-m-d H:i:s)
-      responses:
-        200:
-          description: History data
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    company_id:
-                      type: integer
-                    name:
-                      type: string
-                    net_worth:
-                      type: integer
-                    stock_price:
-                      type: integer
-                    recorded_at:
-                      type: string
-
-  /api/users:
-    get:
-      summary: Get all users
-      tags: [Users]
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-        - in: query
-          name: offset
-          schema:
-            type: integer
-        - in: query
-          name: role
-          schema:
-            type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserResponse'
-
-    post:
-      summary: Create a new user
-      tags: [Users]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserCreateRequest'
-      responses:
-        200:
-          description: User created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-
-  /api/users/{id}:
-    get:
-      summary: Get user by ID
-      tags: [Users]
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-    put:
-      summary: Update user
-      tags: [Users]
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserUpdateRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-    delete:
-      summary: Delete user
-      tags: [Users]
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        200:
-          description: User deleted
