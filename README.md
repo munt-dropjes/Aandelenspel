@@ -21,14 +21,13 @@ Teams (Companies) compete for the highest Net Worth by completing high-stakes ta
     * **Success:** Earns the tiered reward (1st place gets P1, 2nd gets P2, etc.).
     * **Failure:** The company pays a **Penalty** (deducted from cash) and is **blocked** from retrying.
     * **Fairness:** Failed attempts do *not* consume a Rank slot. If Company A fails, Company B can still claim the 1st Place reward.
-    * **CSV Import:** Game Masters can bulk-import custom tasks and reward tiers via a simple Excel/CSV upload.
 * **History:** The system records minute-by-minute snapshots of company values for historical graphing.
 * **Authentication:** Users (Admins/Game Masters) login via JWT.
 * **The Heartbeat:** Once logged in, the frontend triggers a "Snapshot" event (`/api/history/save`) every **60 seconds**.
 * **Live Updates:**
-    * **Graph:** Fetches historical data points (synchronized to UTC) to visualize company performance over time.
-    * **Stocks:** Displays a live matrix of share ownership and bank availability.
-    * **Tasks:** Allows dynamic input of task results, automatically calculating ranks and financial rewards on the server.
+  * **Graph:** Fetches historical data points (synchronized to UTC) to visualize company performance over time.
+  * **Stocks:** Displays a live matrix of share ownership and bank availability.
+  * **Tasks:** Allows dynamic input of task results, automatically calculating ranks and financial rewards on the server.
 
 ---
 
@@ -107,9 +106,24 @@ On the first run, the database automatically initializes with default data:
 | Method | Endpoint              | Description                                                                                                                      |
 |--------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `GET`  | `/api/tasks`          | List all tasks with their category, rewards, and completion status. Response includes finished_by (winners) and failed (losers). |
-| `POST` | `/api/tasks/complete` | Submit a task attempt. Irreversible. Success automatically assigns rank and reward; Failure yields penalty + block.              |
-| `POST` | `/api/tasks/import`   | Bulk import tasks and categories from JSON (used by Frontend CSV importer). Requires `SETUP` state.                              |
-| `DELETE`| `/api/tasks/all`      | Delete all tasks and categories. Requires `SETUP` state.                                                                         |
+| `POST` | `/api/tasks/complete` | Submit a task attempt. Irreversible. Success automatically assigns rank and reward.; Failure yields penalty + block.             |
+
+Payload (Success):
+```JSON
+{
+"company_id": 1,
+"task_id": 5,
+"success": true
+}
+```
+Payload (Failure/Penalty):
+```JSON
+{
+"company_id": 1,
+"task_id": 5,
+"success": false
+}
+```
 
 ### 📈 Stocks & Trading
 
@@ -120,6 +134,17 @@ On the first run, the database automatically initializes with default data:
 | `GET`  | `/api/stocks/company/{id}` | View a specific company's portfolio.                       |
 | `POST` | `/api/stocks/trade`        | Buy/Sell stocks. Checks for sufficient Cash & Stock funds. |
 
+**Payload:**
+```JSON
+{
+  "buyer_id": 1,
+  "seller_id": null,
+  "stock_company_id": 2,
+  "amount": 10
+}
+```
+*(Use `seller_id: null` to buy from the Bank)*
+
 ### 💸 Transactions
 
 | Method | Endpoint                     | Description                                                    |
@@ -127,6 +152,16 @@ On the first run, the database automatically initializes with default data:
 | `GET`  | `/api/transactions`          | View transaction history. Admins see all; Users see their own. |
 | `POST` | `/api/transactions`          | Create a manual transaction (Admin only).                      |
 | `POST` | `/api/transactions/transfer` | Transfer money from one company to another company.            |
+
+**Payload:**
+```JSON
+{
+  "sender_id": 1,
+  "receiver_id": 2,
+  "amount": 1000,
+  "description": "Secret deal transfer"
+}
+```
 
 ### 🤝 Trade Offers (Negotiations)
 
